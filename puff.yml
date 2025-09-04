@@ -1,0 +1,16 @@
+configuration:
+  default: start
+
+variables:
+  CONTAINER_NAME: gmodds-atomic-runtime
+
+tasks:
+  start:
+    commands:
+      - docker-compose up -d
+  stop:
+    commands:
+      - docker-compose down
+  logs:
+    commands:
+      - docker logs -f {{CONTAINER_NAME}}
