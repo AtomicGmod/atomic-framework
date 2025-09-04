@@ -41,22 +41,43 @@ local debug = iswin and Color(0, 255, 255) or "\27[36m"
 local warn = iswin and Color(255, 255, 0) or "\27[33m"
 local err = iswin and Color(255, 0, 0) or "\27[31m"
 
-function logger:info(message, ...)
-  MsgC(white, "[", getcurrenttime(), " ", info, "INFO", " ", white, self.prefix, "]", " ", string.format(message, ...))
+local levels = {
+  DEBUG = 1,
+  INFO = 2,
+  WARN = 3,
+  ERR = 4,
+}
+
+local logvar = CreateConVar("atomic_log", "INFO", FCVAR_ARCHIVE, "Minimum log level (INFO, DEBUG, WARN, ERR)")
+
+---@protected
+---@param color Color | string
+---@param level string
+---@param message string
+---@param ... any
+function logger:log(color, level, message, ...)
+  local currentLevel = logvar:GetString():upper()
+  local currentIdx = levels[currentLevel] or 1
+  local msgIdx = levels[level] or 1
+
+  if msgIdx < currentIdx then return end
+
+  MsgC(white, "[", getcurrenttime(), " ", color, level, " ", white, self.prefix, "]", " ", string.format(message, ...))
   MsgN()
+end
+
+function logger:info(message, ...)
+  self:log(info, "INFO", message, ...)
 end
 
 function logger:debug(message, ...)
-  MsgC(white, "[", getcurrenttime(), " ", debug, "DEBUG", " ", white, self.prefix, "]", " ", string.format(message, ...))
-  MsgN()
+  self:log(debug, "DEBUG", message, ...)
 end
 
 function logger:warn(message, ...)
-  MsgC(white, "[", getcurrenttime(), " ", warn, "WARN", " ", white, self.prefix, "]", " ", string.format(message, ...))
-  MsgN()
+  self:log(warn, "WARN", message, ...)
 end
 
 function logger:err(message, ...)
-  MsgC(white, "[", getcurrenttime(), " ", err, "ERR", " ", white, self.prefix, "]", " ", string.format(message, ...))
-  MsgN()
+  self:log(err, "ERR", message, ...)
 end
