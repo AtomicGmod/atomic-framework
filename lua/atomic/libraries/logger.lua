@@ -1,6 +1,6 @@
 atomic.logger = atomic.logger or {
   ---@private
-  ---@type Dict<Atomic.STD.Logger>
+  ---@type table<string, Atomic.STD.Logger>
   storage = {},
 }
 

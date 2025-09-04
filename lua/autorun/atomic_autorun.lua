@@ -1,6 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
+    version = "0.1.0"
   }
 }
 
@@ -14,11 +15,13 @@ end
 
 includeSh("atomic/utils/semver.lua")
 includeSh("atomic/libraries/logger.lua")
+includeSh("atomic/libraries/loader.lua")
 includeSh("atomic/libraries/package.lua")
 
 atomic.log = atomic.logger.new("atomic")
 
 -- step 1: Scaning for packages
+local atomicVersion = atomic.meta.version
 ---@type table<string, Atomic.STD.Package>
 local packagesCache = {}
 
@@ -28,7 +31,7 @@ for _, package in ipairs(packages) do
   local path = "atomic/packages/" .. package .. "/package.lua"
 
   if (not file.Exists(path, "LUA")) then
-    atomic.log:warn("Package `%s` doesn't contains package.lua!", package)
+    atomic.log:warn("package `%s` doesn't contains package.lua!", package)
     continue
   end
 
@@ -36,8 +39,19 @@ for _, package in ipairs(packages) do
   local payload = include(path)
 
   if (not istable(payload)) then
-    atomic.log:err("Package `%s` contains wrong payload! (%s instead table)", package, type(payload))
+    atomic.log:err("package `%s` contains wrong payload! (%s instead table)", package, type(payload))
     continue
+  end
+
+  if (payload.atomic) then
+    local version = payload.atomic.version
+
+    if (version) then
+      if (!util.IsVersionSuitable(atomic.meta.version, version)) then
+        atomic.log:err("package `%s` requires atomic's version `%s`, current is `%s`", package, version, atomicVersion)
+        continue
+      end
+    end
   end
 
   -- all package.lua's are shared files
@@ -61,12 +75,10 @@ for id, package in pairs(packagesCache) do
     local dep = packagesCache[depId .. "@" .. depVersion]
 
     if (not dep) then
-      atomic.log:err("The dependency `%s` version of %s is required for `%s` and was not found.", depId, depVersion, package.id)
+      atomic.log:err("the dependency `%s` version of %s is required for `%s` and was not found.", depId, depVersion, package.id)
     end
   end
 end
-
--- step 3: Loading packages
 
 -- step 3: Loading packages
 
@@ -124,18 +136,18 @@ end
 
 -- проверка на циклы
 if #loadOrder ~= table.Count(packagesCache) then
-  atomic.log:err("Dependency cycle detected! Unable to resolve load order.")
+  atomic.log:err("dependency cycle detected! Unable to resolve load order.")
 else
   -- загружаем в порядке
   for _, id in ipairs(loadOrder) do
-    for key, package in pairs(packagesCache) do
+    for _, package in pairs(packagesCache) do
       if package.id == id then
         local ok, err = pcall(package.load, package)
 
         if not ok then
-          atomic.log:err("Failed to load package `%s`: %s", id, err)
+          atomic.log:err("failed to load package `%s`: %s", id, err)
         else
-          atomic.log:debug("Package `%s` loaded successfully!", id)
+          atomic.log:debug("package `%s` loaded successfully!", id)
         end
       end
     end
