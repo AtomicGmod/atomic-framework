@@ -62,22 +62,30 @@ for _, package in ipairs(packages) do
   packagesCache[payload.id .. "@" .. payload.version] = atomic.package.new(payload, package)
 end
 
--- step 2: Dependencies check
+-- step 2: Dependencies/required atomic version check
+
+local toRemove = {}
 
 for id, package in pairs(packagesCache) do
   local deps = package.dependencies
 
-  if (not istable(deps) or not deps) then
+  if not istable(deps) or not deps then
     continue
   end
 
   for depId, depVersion in pairs(deps) do
     local dep = packagesCache[depId .. "@" .. depVersion]
 
-    if (not dep) then
-      atomic.log:err("the dependency `%s` version of %s is required for `%s` and was not found.", depId, depVersion, package.id)
+    if not dep then
+      atomic.log:err("dependency `%s` version %s is required for `%s`, but was not found.", depId, depVersion, package.id)
+      toRemove[#toRemove+1] = id
+      break
     end
   end
+end
+
+for _, id in ipairs(toRemove) do
+  packagesCache[id] = nil
 end
 
 -- step 3: Loading packages

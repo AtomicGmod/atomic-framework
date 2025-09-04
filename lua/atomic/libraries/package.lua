@@ -13,6 +13,7 @@ atomic.package = {
 
 ---@class Atomic.STD.Package
 ---@field logger Atomic.STD.Logger
+---@field kind "library" | "system"
 ---@field dir string
 ---@field id string Package ID form of %s.author.packagename
 ---@field atomic? Atomic.STD.AtomicMeta
