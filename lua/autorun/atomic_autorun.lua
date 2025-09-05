@@ -14,9 +14,12 @@ local function includeSh(path)
 end
 
 includeSh("atomic/utils/semver.lua")
+
 includeSh("atomic/libraries/logger.lua")
 includeSh("atomic/libraries/loader.lua")
-includeSh("atomic/libraries/package.lua")
+
+atomic.loader.shared("atomic/libraries/package.lua")
+atomic.loader.client("atomic/libraries/web.lua")
 
 atomic.log = atomic.logger.new("atomic")
 
