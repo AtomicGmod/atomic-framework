@@ -1,7 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version = "0.1.1"
+    version = "0.1.2"
   }
 }
 
@@ -14,6 +14,7 @@ local function includeSh(path)
 end
 
 ---@include
+includeSh("atomic/utils/table.lua")
 includeSh("atomic/utils/coroutine.lua")
 includeSh("atomic/utils/semver.lua")
 includeSh("atomic/libraries/logger.lua")
