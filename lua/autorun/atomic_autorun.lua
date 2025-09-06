@@ -1,7 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version = "0.1.0"
+    version = "0.1.1"
   }
 }
 
@@ -13,11 +13,11 @@ local function includeSh(path)
   include(path)
 end
 
+---@include
+includeSh("atomic/utils/coroutine.lua")
 includeSh("atomic/utils/semver.lua")
-
 includeSh("atomic/libraries/logger.lua")
 includeSh("atomic/libraries/loader.lua")
-
 atomic.loader.shared("atomic/libraries/package.lua")
 atomic.loader.client("atomic/libraries/web.lua")
 
@@ -50,7 +50,7 @@ for _, package in ipairs(packages) do
     local version = payload.atomic.version
 
     if (version) then
-      if (!util.IsVersionSuitable(atomic.meta.version, version)) then
+      if (not util.IsVersionSuitable(atomic.meta.version, version)) then
         atomic.log:err("package `%s` requires atomic's version `%s`, current is `%s`", package, version, atomicVersion)
         continue
       end

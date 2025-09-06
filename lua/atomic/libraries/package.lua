@@ -12,9 +12,9 @@ atomic.package = {
 ---@field version? string
 
 ---@class Atomic.STD.Package
----@field logger Atomic.STD.Logger
+---@field logger Atomic.STD.Logger?
 ---@field kind "library" | "system"
----@field dir string
+---@field dir string?
 ---@field id string Package ID form of %s.author.packagename
 ---@field atomic? Atomic.STD.AtomicMeta
 ---@field nicename string Formatted name of the package (or language key)
@@ -23,8 +23,8 @@ atomic.package = {
 ---@field documentation string? URL to documentation of the package
 ---@field configuration table<string, any>
 ---@field files table<"client" | "server" | "shared", string[]>
----@field dependencies table<string, string>
----@field isloaded boolean
+---@field dependencies table<string, string>?
+---@field isloaded boolean?
 local package = {}
 package.__index = package
 
