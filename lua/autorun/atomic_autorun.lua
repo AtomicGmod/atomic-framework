@@ -1,7 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version = "0.1.2"
+    version = "0.1.3"
   }
 }
 
@@ -19,8 +19,11 @@ includeSh("atomic/utils/coroutine.lua")
 includeSh("atomic/utils/semver.lua")
 includeSh("atomic/libraries/logger.lua")
 includeSh("atomic/libraries/loader.lua")
-atomic.loader.shared("atomic/libraries/package.lua")
 atomic.loader.client("atomic/libraries/web.lua")
+atomic.loader.server("atomic/libraries/command.lua")
+atomic.loader.server("atomic/libraries/git.lua")
+
+atomic.loader.shared("atomic/libraries/package.lua")
 
 atomic.log = atomic.logger.new("atomic")
 

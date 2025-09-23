@@ -88,7 +88,7 @@ end
 function atomic.package.getByDir(dirname)
   local pkgMeta = atomic.package.storage.map[dirname]
 
-  if (!pkgMeta) then
+  if (not pkgMeta) then
     return
   end
 
@@ -114,14 +114,14 @@ function package:load()
   self.logger:debug("loading package")
   local files = self.files
 
-  if (!files) then
+  if (not files) then
     return self.logger:debug("no files to include")
   end
 
   for side, filelist in pairs(files) do
     local include = atomic.loader[side]
 
-    if (!include) then
+    if (not include) then
       atomic.log:err("unknown include side `%s`", side)
       continue
     end
@@ -135,7 +135,7 @@ function package:load()
 end
 
 function package:unload()
-  if (!self.isloaded) then
+  if (not self.isloaded) then
     return self.logger:debug("trying to unload not loaded package")
   end
 

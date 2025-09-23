@@ -48,7 +48,7 @@ local levels = {
   ERR = 4,
 }
 
-local logvar = CreateConVar("atomic_log", "INFO", FCVAR_ARCHIVE, "Minimum log level (INFO, DEBUG, WARN, ERR)")
+local logvar = CreateConVar("atomic_log", "INFO", FCVAR_ARCHIVE + FCVAR_PROTECTED, "Minimum log level (INFO, DEBUG, WARN, ERR)")
 
 ---@protected
 ---@param color Color | string

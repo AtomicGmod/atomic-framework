@@ -22,13 +22,20 @@ function table.debug(tab, indent, done)
 
   local indentStr = ("\t"):rep(indent)
 
+  local i = 0;
   for key, value in pairs(tab) do
+    i = i + 1
     MsgC(indentStr, blue, typeAliases[type(key)], " ", white, tostring(key), white, " = ", blue, (typeAliases[type(value)] or type(value)), white, " ", tostring(value))
     MsgN()
 
     if istable(value) and not done[value] then
       table.debug(value, indent + 1, done)
     end
+  end
+
+  if (i == 0) then
+    MsgC(indentStr, blue, "empty table")
+    MsgN()
   end
 end
 
