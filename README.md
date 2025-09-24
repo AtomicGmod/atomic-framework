@@ -13,3 +13,4 @@
 - [ ] ``atomic.net`` (autumnnet as base)
 - [ ] ``atomic.command``
   - [ ] Command parser
+- [ ] ``atomic.bind``
