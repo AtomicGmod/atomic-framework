@@ -1,7 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version = "0.1.3"
+    version = "0.1.4"
   }
 }
 
@@ -14,15 +14,17 @@ local function includeSh(path)
 end
 
 ---@include
-includeSh("atomic/utils/table.lua")
-includeSh("atomic/utils/coroutine.lua")
-includeSh("atomic/utils/semver.lua")
 includeSh("atomic/libraries/logger.lua")
 includeSh("atomic/libraries/loader.lua")
+-- utils
+atomic.loader.shared("atomic/utils/table.lua")
+atomic.loader.shared("atomic/utils/coroutine.lua")
+atomic.loader.shared("atomic/utils/semver.lua")
+-- libraries
 atomic.loader.client("atomic/libraries/web.lua")
 atomic.loader.server("atomic/libraries/command.lua")
 atomic.loader.server("atomic/libraries/git.lua")
-
+-- should be latest
 atomic.loader.shared("atomic/libraries/package.lua")
 
 atomic.log = atomic.logger.new("atomic")
@@ -157,12 +159,13 @@ else
   for _, id in ipairs(loadOrder) do
     for _, package in pairs(packagesCache) do
       if package.id == id then
+        ---@diagnostic disable-next-line
         local ok, err = pcall(package.load, package)
 
         if not ok then
           atomic.log:err("failed to load package `%s`: %s", id, err)
         else
-          atomic.log:debug("package `%s` loaded successfully!", id)
+          atomic.log:debug("package `%s@%s` loaded successfully!", id, package.version)
         end
       end
     end

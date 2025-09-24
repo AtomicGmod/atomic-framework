@@ -21,11 +21,11 @@ function atomic.logger.new(prefix)
     return cache
   end
 
-  local lggr = setmetatable({ prefix = prefix }, logger)
+  local log = setmetatable({ prefix = prefix }, logger)
 
-  atomic.logger.storage[prefix] = lggr
+  atomic.logger.storage[prefix] = log
 
-  return lggr
+  return log
 end
 
 local function getcurrenttime()

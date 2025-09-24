@@ -14,7 +14,7 @@ end
 ---@type table<string, fun(name: string): Atomic.Git.Folder>
 local openers = {
   root = function()
-    return atomic.git.open("./")
+    return atomic.git.open("./garrysmod/")
   end,
 
   gamemode = function(name)
@@ -52,7 +52,7 @@ function atomic.git.from(kind, name)
 
   local folder, err = opener(name)
 
-  if (!folder) then
+  if (not folder) then
     return atomic.git.logger:err("failed to open git repository: %s", tostring(err))
   end
 

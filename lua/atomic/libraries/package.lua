@@ -12,9 +12,7 @@ atomic.package = {
 ---@field version? string
 
 ---@class Atomic.STD.Package
----@field logger Atomic.STD.Logger?
 ---@field kind "library" | "system"
----@field dir string?
 ---@field id string Package ID form of %s.author.packagename
 ---@field atomic? Atomic.STD.AtomicMeta
 ---@field nicename string Formatted name of the package (or language key)
@@ -24,7 +22,12 @@ atomic.package = {
 ---@field configuration table<string, any>
 ---@field files table<"client" | "server" | "shared", string[]>
 ---@field dependencies table<string, string>?
----@field isloaded boolean?
+---@field private _dir string? Internal
+---@field private _isLoaded boolean? Internal
+---@field private _isEnabled boolean? Internal
+---@field private logger Atomic.STD.Logger? Internal
+---@field private _events table<string, function> Internal
+---@field private _commands table<string, Atomic.STD.Command> Internal
 local package = {}
 package.__index = package
 
@@ -41,9 +44,12 @@ function atomic.package.new(payload, dir)
     return cache
   end
 
-  payload.dir = dir
-  payload.isloaded = false
-
+  ---@diagnostic disable
+  payload._dir = dir
+  payload._isLoaded = false
+  payload._isEnabled = false
+  payload._events = {}
+  payload._commands = {}
   payload.logger = atomic.logger.new(dir)
 
   local pkg = setmetatable(payload, package)
@@ -107,15 +113,20 @@ end
 
 ---@return boolean
 function package:isLoaded()
-  return self.isloaded
+  return self._isLoaded
 end
 
+---@return boolean
+function package:isEnabled()
+  return self._isEnabled
+end
+
+---@private
 function package:load()
-  self.logger:debug("loading package")
   local files = self.files
 
   if (not files) then
-    return self.logger:debug("no files to include")
+    return self.logger:warn("no files to include")
   end
 
   for side, filelist in pairs(files) do
@@ -127,19 +138,51 @@ function package:load()
     end
 
     for _, filename in ipairs(filelist) do
-      include("atomic/packages/" .. self.dir .. "/" .. filename)
+      include("atomic/packages/" .. self._dir .. "/" .. filename)
     end
   end
 
-  self.logger:debug("package loaded")
+  self:enable()
 end
 
+---@private
 function package:unload()
-  if (not self.isloaded) then
+  if (not self._isLoaded) then
     return self.logger:debug("trying to unload not loaded package")
   end
 
-  self.logger:debug("package unloaded")
+  self.logger:debug("package `%s@%s` unloaded successfully", self.id, self.version)
+end
+
+---@private
+function package:formatEventId(eventName)
+  return ("atomic:%s:%s"):format(self.id, eventName)
+end
+
+---@private
+function package:enable()
+  for name, command in pairs(self._commands) do
+    atomic.command.add(name, command)
+  end
+
+  for eventName, callback in pairs(self._events) do
+    hook.Add(eventName, self:formatEventId(eventName), callback)
+  end
+
+  self._isEnabled = true
+end
+
+---@private
+function package:disable()
+  for name in pairs(self._commands) do
+    atomic.command.remove(name) -- detach команды
+  end
+
+  for eventName in pairs(self._events) do
+    hook.Remove(eventName, self:formatEventId(eventName))
+  end
+
+  self._isEnabled = false
 end
 
 function package:getName()
@@ -148,4 +191,21 @@ end
 
 function package:getId()
   return self.id
+end
+
+---@param eventName string
+---@param callback function
+function package:on(eventName, callback)
+  self._events[eventName] = callback
+end
+
+---@param name string
+---@param permission string
+---@return Atomic.STD.Command
+function package:command(name, permission)
+  local cmd = atomic.command.register(name, permission)
+
+  self._commands[name] = cmd
+
+  return cmd
 end

@@ -5,7 +5,10 @@
   "Lua.runtime.version": "LuaJIT",
   "Lua.runtime.special": {
     "include": "dofile",
-    "IncludeCS": "dofile"
+    "IncludeCS": "dofile",
+    "atomic.loader.client": "dofile",
+    "atomic.loader.shared": "dofile",
+    "atomic.loader.server": "dofile"
   },
   "Lua.runtime.nonstandardSymbol": [
     "continue"
