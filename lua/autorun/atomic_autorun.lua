@@ -1,7 +1,7 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version = "0.1.4"
+    version = "0.1.5"
   }
 }
 
@@ -21,6 +21,7 @@ atomic.loader.shared("atomic/utils/table.lua")
 atomic.loader.shared("atomic/utils/coroutine.lua")
 atomic.loader.shared("atomic/utils/semver.lua")
 -- libraries
+atomic.loader.shared("atomic/libraries/bind.lua")
 atomic.loader.client("atomic/libraries/web.lua")
 atomic.loader.server("atomic/libraries/command.lua")
 atomic.loader.server("atomic/libraries/git.lua")

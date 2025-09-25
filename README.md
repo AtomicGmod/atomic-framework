@@ -11,6 +11,9 @@
 - [ ] ``atomic.web``
 - [ ] ``atomic.database``
 - [ ] ``atomic.net`` (autumnnet as base)
-- [ ] ``atomic.command``
+- [x] ``atomic.command``
   - [ ] Command parser
-- [ ] ``atomic.bind``
+- [x] ``atomic.bind``
+
+### Misc
+- [ ] Normal documentation everywhere
