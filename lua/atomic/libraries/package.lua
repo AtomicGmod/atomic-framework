@@ -26,8 +26,8 @@ atomic.package = {
 ---@field private _isLoaded boolean? Internal
 ---@field private _isEnabled boolean? Internal
 ---@field private logger Atomic.STD.Logger? Internal
----@field private _events table<string, function> Internal
----@field private _commands table<string, Atomic.STD.Command> Internal
+---@field private _events table<string, function>? Internal
+---@field private _commands table<string, Atomic.STD.Command>? Internal
 local package = {}
 package.__index = package
 
