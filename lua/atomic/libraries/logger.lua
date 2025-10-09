@@ -29,7 +29,7 @@ function atomic.logger.new(prefix)
 end
 
 local function getcurrenttime()
-  return os.date("%H:%M:%S %d.%m")
+  return os.date("%H:%M:%S")
 end
 
 local iswin = jit.os == "Windows"
