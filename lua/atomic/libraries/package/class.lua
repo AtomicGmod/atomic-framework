@@ -23,12 +23,14 @@ local logger = atomic.class.get("Logger")
 ---@cast logger Atomic.Logger
 
 function package:init()
+  local prefix = (self.id:Split(".")[3] or ""):lower()
+
   self.configuration = self.configuration or {}
   self._isLoaded = false
   self._events = {}
   self._commands = {}
   self._binds = {}
-  self.logger = atomic.class.new(logger)
+  self.logger = atomic.logger.new(prefix)
 end
 
 function package:load()
