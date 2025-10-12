@@ -1,21 +1,21 @@
 atomic.web = {
   ---@private
-  ---@type table<string, Atomic.STD.WebView>
+  ---@type table<string, Atomic.WebView>
   storage = {}
 }
 
----@class Atomic.STD.WebView
+---@class Atomic.WebView
 ---@field id string
 ---@field url string
 ---@field private panel DHTML
 local webview = {}
 webview.__index = webview
 
-RegisterMetaTable("Atomic.STD.WebView", webview)
+RegisterMetaTable("Atomic.WebView", webview)
 
 ---@param id string
 ---@param url string
----@return Atomic.STD.WebView
+---@return Atomic.WebView
 function atomic.web.register(id, url)
   local ui = atomic.web.storage[id]
 

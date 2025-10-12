@@ -1,4 +1,5 @@
 # Atomic Framework
+No more magic
 
 ## To Do
 ### Packages
@@ -8,9 +9,11 @@
 - [ ] Config system (with value saving in database)
 
 ### Libraries
-- [ ] ``atomic.web``
+- [x] ``atomic.class``
 - [ ] ``atomic.database``
+- [ ] ``atomic.config``
 - [ ] ``atomic.net`` (autumnnet as base)
+- [ ] ``atomic.web``
 - [x] ``atomic.command``
   - [ ] Command parser
 - [x] ``atomic.bind``

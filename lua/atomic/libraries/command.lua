@@ -1,20 +1,20 @@
----@alias Atomic.STD.Command.ArgumentKind "number" | "string" | "time" | "player"
----@alias Atomic.STD.Command.ExecuteFunc function(executor: Player, arguments: table<string, Atomic.Command.ArgumentKind): string?
+---@alias Atomic.Command.ArgumentKind "number" | "string" | "time" | "player"
+---@alias Atomic.Command.ExecuteFunc function(executor: Player, arguments: table<string, Atomic.Command.ArgumentKind): string?
 
----@class Atomic.STD.Command
+---@class Atomic.Command
 ---@field name string
 ---@field permission string
----@field arguments {[1]: string, [2]: Atomic.STD.Command.ArgumentKind}[]
----@field private _execute Atomic.STD.Command.ExecuteFunc
+---@field arguments {[1]: string, [2]: Atomic.Command.ArgumentKind}[]
+---@field private _execute Atomic.Command.ExecuteFunc
 ---@field private _enabled boolean Internal
 
 atomic.command = {
-	---@type table<string, Atomic.STD.Command>
+	---@type table<string, Atomic.Command>
 	logger = atomic.logger.new("atomic.command"),
 	_storage = {}
 }
 
----@class Atomic.STD.Command
+---@class Atomic.Command
 local command = {}
 command.__index = command
 
@@ -25,13 +25,13 @@ function atomic.command.new(name, permission)
 end
 
 ---@param name string
----@param command Atomic.STD.Command
+---@param command Atomic.Command
 function atomic.command.add(name, command)
  	atomic.command._storage[name] = command
 end
 
 ---@param name string
----@return Atomic.STD.Command?
+---@return Atomic.Command?
 function atomic.command.get(name)
 	return atomic.command._storage[name]
 end
@@ -42,7 +42,7 @@ function atomic.command.remove(name)
 end
 
 ---@param name string
----@param kind Atomic.STD.Command.ArgumentKind
+---@param kind Atomic.Command.ArgumentKind
 ---@return self
 function command:argument(name, kind)
 	self.arguments[#self.arguments + 1] = { name, kind }
@@ -50,7 +50,7 @@ function command:argument(name, kind)
 	return self
 end
 
----@param executable Atomic.STD.Command.ExecuteFunc
+---@param executable Atomic.Command.ExecuteFunc
 ---@return self
 function command:onExecute(executable)
 	self._execute = executable
@@ -85,7 +85,7 @@ end
 
 ---@private
 ---@param executor Player
----@param arguments table<string, Atomic.STD.Command.ArgumentKind>
+---@param arguments table<string, Atomic.Command.ArgumentKind>
 ---@return thread
 function command:doExecute(executor, arguments)
 	local thread = coroutine.create(function()

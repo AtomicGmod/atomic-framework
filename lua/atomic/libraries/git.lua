@@ -9,7 +9,12 @@ end
 
 if (not atomic.git) then
   require("atomic_git")
+
+  if (not atomic.git) then
+  	return
+  end
 end
+
 
 ---@type table<string, fun(name: string): Atomic.Git.Folder>
 local openers = {

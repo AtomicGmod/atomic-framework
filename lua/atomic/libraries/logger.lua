@@ -1,31 +1,30 @@
 atomic.logger = atomic.logger or {
   ---@private
-  ---@type table<string, Atomic.STD.Logger>
-  storage = {},
+  ---@type table<string, Atomic.Logger>
+  _storage = {},
 }
 
----@class Atomic.STD.Logger
+---@class Atomic.Logger: Atomic.Class
 ---@field prefix string
-local logger = {}
-logger.__index = logger
-
-RegisterMetaTable("Atomic.STD.Logger", logger)
+local loggerClass = atomic.class.create("Logger")
+atomic.class.register(loggerClass, atomic.class.pseudo)
 
 --- Creates new instance of Logger
 ---@param prefix string
----@return Atomic.STD.Logger
+---@return Atomic.Logger
 function atomic.logger.new(prefix)
-  local cache = atomic.logger.storage[prefix]
+  local cache = atomic.logger._storage[prefix]
 
   if (cache) then
     return cache
   end
 
-  local log = setmetatable({ prefix = prefix }, logger)
+  local logger = atomic.class.new(loggerClass, {}, prefix)
+  ---@cast logger Atomic.Logger
 
-  atomic.logger.storage[prefix] = log
+  atomic.logger._storage[prefix] = logger
 
-  return log
+  return logger
 end
 
 local function getcurrenttime()
@@ -50,12 +49,17 @@ local levels = {
 
 local logvar = CreateConVar("atomic_log", "INFO", FCVAR_ARCHIVE + FCVAR_PROTECTED, "Minimum log level (INFO, DEBUG, WARN, ERR)")
 
+---@param prefix string
+function loggerClass:init(prefix)
+  self.prefix = prefix
+end
+
 ---@protected
 ---@param color Color | string
 ---@param level string
 ---@param message string
 ---@param ... any
-function logger:log(color, level, message, ...)
+function loggerClass:log(color, level, message, ...)
   local currentLevel = logvar:GetString():upper()
   local currentIdx = levels[currentLevel] or 1
   local msgIdx = levels[level] or 1
@@ -66,18 +70,18 @@ function logger:log(color, level, message, ...)
   MsgN()
 end
 
-function logger:info(message, ...)
+function loggerClass:info(message, ...)
   self:log(info, "INFO", message, ...)
 end
 
-function logger:debug(message, ...)
+function loggerClass:debug(message, ...)
   self:log(debug, "DEBUG", message, ...)
 end
 
-function logger:warn(message, ...)
+function loggerClass:warn(message, ...)
   self:log(warn, "WARN", message, ...)
 end
 
-function logger:err(message, ...)
+function loggerClass:err(message, ...)
   self:log(err, "ERR", message, ...)
 end
