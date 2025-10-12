@@ -1,33 +1,30 @@
-if (not util.IsBinaryModuleInstalled("atomic_git")) then
-  atomic.log:warn("Binary module `atomic_git` isn't installed!")
-
+if (not util.IsBinaryModuleInstalled("git")) then
   return
 end
 
 ---@class Atomic.Git.Folder
 ---@field folder string
 
-if (not atomic.git) then
-  require("atomic_git")
-
-  if (not atomic.git) then
-  	return
-  end
+if (not git) then
+  require("git")
 end
 
+atomic.git = atomic.git or {
+  logger = atomic.logger.new("git")
+}
 
 ---@type table<string, fun(name: string): Atomic.Git.Folder>
 local openers = {
   root = function()
-    return atomic.git.open("garrysmod")
+    return git.open("garrysmod")
   end,
 
   gamemode = function(name)
-    return atomic.git.open("garrysmod/gamemodes/" .. name)
+    return git.open("garrysmod/gamemodes/" .. name)
   end,
 
   addon = function(name)
-    return atomic.git.open("garrysmod/addons/" .. name)
+    return git.open("garrysmod/addons/" .. name)
   end
 }
 
@@ -58,7 +55,8 @@ function atomic.git.from(kind, name)
   local folder, err = opener(name)
 
   if (not folder) then
-    return atomic.git.logger:err("failed to open git repository: %s", tostring(err))
+    local who = name and kind .. " " .. name or kind
+    return atomic.git.logger:err("failed to open git repository for %s: %s", who, tostring(err))
   end
 
   atomic.git._storage[kind][name] = folder
