@@ -1,16 +1,13 @@
-configuration:
-  default: start
-
-variables:
-  CONTAINER_NAME: gmodds-atomic-runtime
+# Commands for start Garry's Mod server within wsl
 
 tasks:
-  start:
+  default:
+    description: Starts new srcds process within wsl
+    runner: powershell
+    arguments:
+      - name: WSL_DISTRO
+        default: ${WSL_DISTRO}
+      - name: WSL_ENTRYPOINT
+        default: ${WSL_DISTRO}
     commands:
-      - docker-compose up -d
-  stop:
-    commands:
-      - docker-compose down
-  logs:
-    commands:
-      - docker logs -f {{CONTAINER_NAME}}
+      - wsl -d ${WSL_DISTRO} -- bash -c "${WSL_ENTRYPOINT}"

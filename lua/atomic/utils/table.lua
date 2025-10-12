@@ -20,6 +20,8 @@ function table.debug(tab, indent, done)
   indent = indent or 0
   done = done or {}
 
+  done[tab] = true
+
   local indentStr = ("\t"):rep(indent)
 
   local i = 0;

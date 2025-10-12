@@ -9,20 +9,25 @@ end
 
 if (not atomic.git) then
   require("atomic_git")
+
+  if (not atomic.git) then
+  	return
+  end
 end
+
 
 ---@type table<string, fun(name: string): Atomic.Git.Folder>
 local openers = {
   root = function()
-    return atomic.git.open("./garrysmod/")
+    return atomic.git.open("garrysmod")
   end,
 
   gamemode = function(name)
-    return atomic.git.open("./garrysmod/gamemodes/" .. name)
+    return atomic.git.open("garrysmod/gamemodes/" .. name)
   end,
 
   addon = function(name)
-    return atomic.git.open("./garrysmod/addons/" .. name)
+    return atomic.git.open("garrysmod/addons/" .. name)
   end
 }
 

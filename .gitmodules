@@ -1,3 +1,0 @@
-[submodule "thirdparty/garrysmod-docker"]
-	path = thirdparty/garrysmod-docker
-	url = https://github.com/ceifa/garrysmod-docker.git
