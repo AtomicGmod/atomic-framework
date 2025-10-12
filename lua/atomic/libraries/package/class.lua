@@ -13,8 +13,8 @@
 ---@field private _isLoaded boolean? `Internal` variable
 ---@field private _events table<string, function>? `Internal` variable
 ---@field private _commands table<string, Atomic.Command>? `Internal` variable
----@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[] `Internal` variable
----@field private logger Atomic.Logger? `Internal` variable
+---@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[]? `Internal` variable
+---@field logger Atomic.Logger? `Internal` variable
 local package = atomic.class.create("Package")
 atomic.class.register(package, atomic.class.pseudo)
 
@@ -28,7 +28,7 @@ function package:init()
   self._events = {}
   self._commands = {}
   self._binds = {}
-  self._logger = atomic.class.new(logger)
+  self.logger = atomic.class.new(logger)
 end
 
 function package:load()
