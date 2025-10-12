@@ -54,7 +54,7 @@ function atomic.package.find(path, isInGamemode)
   local gameDir = isInGamemode and "GAME" or "LUA"
 
   if file.Exists(pkg, gameDir) then
-    local package = include(path .. "/package.lua")
+    local package = atomic.loader.shared(path .. "/package.lua")
 
     if (type(package) ~= "table") then
       return
@@ -71,7 +71,7 @@ function atomic.package.find(path, isInGamemode)
   for _, package in ipairs(packages) do
     local pkgPath = gameRelativePath .. "/" .. package .. "/package.lua"
     if file.Exists(pkgPath, gameDir) then
-      local packageData = include(path .. "/" .. package .. "/package.lua")
+      local packageData = atomic.loader.shared(path .. "/" .. package .. "/package.lua")
       packageData._path = path .. "/" .. package
       if type(packageData) == "table" then
         table.insert(result, packageData)
