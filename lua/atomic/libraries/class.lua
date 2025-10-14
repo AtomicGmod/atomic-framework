@@ -34,6 +34,10 @@ function atomic.class.create(name, parent)
     return "instance of " .. tostring(self._name)
   end
 
+  class.__classname = function(self)
+    return name
+  end
+
   return class
 end
 
@@ -70,11 +74,11 @@ end
 --- local animal = atomic.class.new(animalClass)
 --- ```
 ---
----@param class Atomic.Class
----@param tab table? Content of the instance
----@vararg any
 ---@generic T
----@return Atomic.Class
+---@param class Atomic.Class
+---@param tab T? Content of the instance
+---@vararg any
+---@return T: Atomic.Class
 function atomic.class.new(class, tab, ...)
   local instance = setmetatable(tab or {}, class)
 

@@ -9,7 +9,7 @@ function atomic.loader.client(path)
     return AddCSLuaFile(path)
   end
 
-  atomic.loader.logger:debug("including client file `%s`", path)
+  atomic.loader.logger:trace("including client file `%s`", path)
 
   return include(path)
 end
@@ -21,7 +21,7 @@ function atomic.loader.shared(path)
     AddCSLuaFile(path)
   end
 
-  atomic.loader.logger:debug("including shared file `%s`", path)
+  atomic.loader.logger:trace("including shared file `%s`", path)
 
   return include(path)
 end
@@ -30,7 +30,7 @@ end
 ---@return ...?
 function atomic.loader.server(path)
   if (SERVER) then
-    atomic.loader.logger:debug("including server file `%s`", path)
+    atomic.loader.logger:trace("including server file `%s`", path)
     return include(path)
   end
 end

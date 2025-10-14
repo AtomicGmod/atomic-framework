@@ -1,7 +1,7 @@
 {
   "Lua.workspace.library": [
-    "${addons}/garrysmod/module/library"
-  ],
+        "${addons}/garrysmod/module/library"
+    ],
   "Lua.runtime.version": "LuaJIT",
   "Lua.runtime.special": {
     "include": "dofile",
@@ -11,13 +11,21 @@
     "atomic.loader.server": "dofile"
   },
   "Lua.runtime.nonstandardSymbol": [
-    "continue"
+    "continue",
+        "!",
+        "!=",
+        "&&",
+        "||",
+        "//",
+        "/**/"
   ],
   "Lua.diagnostics.disable": [
     "duplicate-set-field"
   ],
   "Lua.workspace.checkThirdParty": false,
     "diagnostics.globals": [
-        "atomic"
+        "atomic",
+        "git",
+        "mysqloo"
     ]
 }

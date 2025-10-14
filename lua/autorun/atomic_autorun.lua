@@ -1,8 +1,8 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version_name = "Ackee",
-    version = "0.3.2",
+    version_name = "Durian",
+    version = "0.4.0",
   }
 }
 
@@ -25,6 +25,7 @@ local loader = atomic.loader
 local client, shared, server = loader.client, loader.shared, loader.server
 -- utils
 shared("atomic/utils/table.lua")
+shared("atomic/utils/debug.lua")
 shared("atomic/utils/coroutine.lua")
 shared("atomic/utils/semver.lua")
 -- libraries
@@ -34,15 +35,13 @@ server("atomic/libraries/command.lua")
 server("atomic/libraries/mysql.lua")
 server("atomic/libraries/git.lua")
 -- package loading should be latest
-shared("atomic/libraries/package/class.lua")
 shared("atomic/libraries/package/common.lua")
 
 atomic.log = atomic.logger.new("atomic")
 
 local package = atomic.package
 local packages = package.find("atomic/packages")
-
----@cast packages Atomic.Package
+---@cast packages Atomic.Package[]
 
 package.loadMany(packages)
 

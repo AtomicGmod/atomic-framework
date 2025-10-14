@@ -13,6 +13,13 @@ local typeAliases = {
   ["nil"] = "nil"
 }
 
+---@param  d any
+---@return string
+local function getTypeAlias(d)
+  local t = type(d)
+  return t == "table" and (d.__classname and d:__classname()) or typeAliases[t] or t
+end
+
 ---@param tab table
 ---@param indent number?
 ---@param done table?
@@ -27,7 +34,7 @@ function table.debug(tab, indent, done)
   local i = 0;
   for key, value in pairs(tab) do
     i = i + 1
-    MsgC(indentStr, blue, typeAliases[type(key)], " ", white, tostring(key), white, " = ", blue, (typeAliases[type(value)] or type(value)), white, " ", tostring(value))
+    MsgC(white, indentStr, tostring(key), " ", blue, getTypeAlias(key), white, " = ", blue, getTypeAlias(value), white, " ", tostring(value))
     MsgN()
 
     if istable(value) and not done[value] then
