@@ -35,19 +35,21 @@ local iswin = jit.os == "Windows"
 
 -- colors
 local white = iswin and Color(255, 255, 255) or "\27[37m"
-local info = iswin and Color(0, 255, 0) or "\27[32m"
+local trace = iswin and Color(128, 128, 128) or "\27[90m"
 local debug = iswin and Color(0, 255, 255) or "\27[36m"
+local info = iswin and Color(0, 255, 0) or "\27[32m"
 local warn = iswin and Color(255, 255, 0) or "\27[33m"
 local err = iswin and Color(255, 0, 0) or "\27[31m"
 
 local levels = {
-  DEBUG = 1,
-  INFO = 2,
-  WARN = 3,
-  ERR = 4,
+  TRACE = 1,
+  DEBUG = 2,
+  INFO = 3,
+  WARN = 4,
+  ERR = 5,
 }
 
-local logvar = CreateConVar("atomic_log", "INFO", FCVAR_ARCHIVE + FCVAR_PROTECTED, "Minimum log level (INFO, DEBUG, WARN, ERR)")
+local logvar = CreateConVar("atomic_log", "INFO", {FCVAR_ARCHIVE, FCVAR_PROTECTED}, "Minimum log level (INFO, DEBUG, WARN, ERR)")
 
 ---@param prefix string
 function loggerClass:init(prefix)
@@ -70,12 +72,17 @@ function loggerClass:log(color, level, message, ...)
   MsgN()
 end
 
-function loggerClass:info(message, ...)
-  self:log(info, "INFO", message, ...)
+function loggerClass:trace(message, ...)
+  self:log(trace, "TRACE", message, ...)
 end
 
 function loggerClass:debug(message, ...)
   self:log(debug, "DEBUG", message, ...)
+end
+
+
+function loggerClass:info(message, ...)
+  self:log(info, "INFO", message, ...)
 end
 
 function loggerClass:warn(message, ...)

@@ -4,7 +4,7 @@
 ---@field description string?
 ---@field version string
 ---@field documentation string?
--- @field configuration table<string, any>?
+-- @field configuration Atomic.Package.Configuration?
 ---@field files table<"client" | "shared" | "server", string[]>
 ---@field dependencies table<string, string>?
 ---@field atomic { version: string }?
@@ -13,22 +13,25 @@
 ---@field private _isLoaded boolean? `Internal` variable
 ---@field private _events table<string, function>? `Internal` variable
 ---@field private _commands table<string, Atomic.Command>? `Internal` variable
----@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[] `Internal` variable
----@field private logger Atomic.Logger? `Internal` variable
+---@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[]? `Internal` variable
+---@field logger Atomic.Logger? `Internal` variable
 local package = atomic.class.create("Package")
 atomic.class.register(package, atomic.class.pseudo)
 
-local logger = atomic.class.get("Logger")
-
----@cast logger Atomic.Logger
+local configClass = atomic.class.get("Configuration")
+---@cast configClass Atomic.Package
 
 function package:init()
-  self.configuration = self.configuration or {}
+  local prefix = (self.id:Split(".")[3] or "n/a"):lower()
+
+  local config = self.configuration or {}
+
+  self.configuration = atomic.class.new(configClass, nil, config, self)
   self._isLoaded = false
   self._events = {}
   self._commands = {}
   self._binds = {}
-  self._logger = atomic.class.new(logger)
+  self.logger = atomic.logger.new(prefix)
 end
 
 function package:load()
@@ -99,11 +102,15 @@ end
 ---@param callback fun(player: Player)
 ---@return integer registrationId
 function package:bind(key, callback)
-  self._binds[#self._binds+1] = {
+  local id = #self._binds+1
+
+  self._binds[id] = {
     key = key,
     callback = callback,
     registrationId = 0
   }
+
+  return id
 end
 
 --- Commands
@@ -171,4 +178,29 @@ end
 ---@param eventName string
 function package:unlisten(eventName)
   self._events[eventName] = nil
+end
+
+--- Classes
+
+--- Creates new class and automatically registeres it
+---@param name string
+---@generic T
+---@return T: Atomic.Class
+function package:newClass(name)
+  local class = atomic.class.create(name)
+  atomic.class.register(class, self)
+
+  return class
+end
+
+--- Return package's registered class
+---@param class Atomic.Class
+function package:registerClass(class)
+  return atomic.class.register(class, self)
+end
+
+--- Return package's registered class
+---@param name string
+function package:getClass(name)
+  return atomic.class.get(name, self)
 end

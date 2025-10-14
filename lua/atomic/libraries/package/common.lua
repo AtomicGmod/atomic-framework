@@ -5,6 +5,10 @@ atomic.package = atomic.package or {
   _pathMap = {}
 }
 
+---@include
+atomic.loader.shared("config.lua")
+atomic.loader.shared("class.lua")
+
 local packageClass = atomic.class.get("Package")
 
 ---@cast packageClass Atomic.Package
@@ -30,7 +34,17 @@ end
 ---@param id string
 ---@param version string
 function atomic.package.get(id, version)
-  return (atomic.package._storage[id] or {})[version]
+  local packages = atomic.package._storage[id]
+
+  if (not packages) then
+    return
+  end
+
+  for ver, package in pairs(packages) do
+    if (util.IsVersionSuitable(ver, version)) then
+      return package
+    end
+  end
 end
 
 --- Searches for packages along the specified path
@@ -93,10 +107,11 @@ function atomic.package.load(package)
 
   local packageInstance = atomic.package.new(package)
 
+  ---@diagnostic disable-next-line
   atomic.package._pathMap[package._path] = { package.id, package.version }
 
   ---@cast packageInstance Atomic.Package
-  if packageInstance.atomic and not util.IsVersionSuitable(packageInstance.atomic.version, atomic.meta.version) then
+  if packageInstance.atomic and not util.IsVersionSuitable(atomic.meta.version, packageInstance.atomic.version) then
     atomic.log:err(
       "package `%s` requires atomic %s, but current is %s",
       packageInstance.id, tostring(packageInstance.atomic.version), tostring(atomic.meta.version)
@@ -128,17 +143,32 @@ function atomic.package.loadMany(packages)
 
   local packagesCache = {}
 
+  local findPackage = function(id, version)
+    local packagesCached = packagesCache[id]
+    local cached = packagesCached and packagesCached[version]
+
+    return cached or atomic.package.get(id, version)
+  end
+
+  local insertPackage = function(id, version, package)
+    if (not packagesCache[id]) then
+      packagesCache[id] = {}
+    end
+
+    packagesCache[id][version] = package
+  end
+
   for _, pkg in ipairs(packages) do
-    if not pkg.id or not pkg.version then
+    local id, version = pkg.id, pkg.version
+    if not id or not version then
       atomic.log:err("invalid package detected (missing id/version), skipping.")
       continue
     end
 
-    local key = pkg.id .. "@" .. pkg.version
-    if packagesCache[key] then
+    if findPackage(id, version) then
       atomic.log:warn("duplicate package `%s@%s` ignored.", pkg.id, pkg.version)
     else
-      packagesCache[key] = pkg
+      insertPackage(id, version, pkg)
     end
   end
 
@@ -148,7 +178,7 @@ function atomic.package.loadMany(packages)
     local deps = pkg.dependencies
     if type(deps) == "table" then
       for depId, depVersion in pairs(deps) do
-        if not packagesCache[depId .. "@" .. depVersion] then
+        if not findPackage(depId, depVersion) then
           atomic.log:err("dependency `%s` version %s is required for `%s`, but was not found.", depId, depVersion, pkg.id)
           table.insert(toRemove, id)
           break
@@ -166,15 +196,15 @@ function atomic.package.loadMany(packages)
   end
 
   local indegree = {}
-  for _, pkg in pairs(packagesCache) do
-    indegree[pkg.id] = 0
+  for id in pairs(packagesCache) do
+    -- todo version
+    indegree[id] = 0
   end
 
   for _, pkg in pairs(packagesCache) do
     if type(pkg.dependencies) == "table" then
       for depId, depVersion in pairs(pkg.dependencies) do
-        local depKey = depId .. "@" .. depVersion
-        if packagesCache[depKey] then
+        if findPackage(depId, depVersion) then
           indegree[pkg.id] = (indegree[pkg.id] or 0) + 1
         end
       end
@@ -192,8 +222,8 @@ function atomic.package.loadMany(packages)
     for _, pkg in pairs(packagesCache) do
       if type(pkg.dependencies) == "table" then
         for depId, depVersion in pairs(pkg.dependencies) do
-          local depKey = depId .. "@" .. depVersion
-          if packagesCache[depKey] and depId == id then
+          local depdendency = findPackage(depId, depVersion)
+          if depdendency and depId == depdendency.id then
             indegree[pkg.id] = indegree[pkg.id] - 1
             if indegree[pkg.id] == 0 then table.insert(queue, pkg.id) end
           end
@@ -208,10 +238,12 @@ function atomic.package.loadMany(packages)
     return
   end
 
-  for _, id in ipairs(loadOrder) do
-    for _, pkg in pairs(packagesCache) do
-      if pkg.id == id then
-        atomic.package.load(pkg)
+  for _, orderId in ipairs(loadOrder) do
+    for id, pkgs in pairs(packagesCache) do
+      for _version, pkg in pairs(pkgs) do
+        if id == orderId then
+          atomic.package.load(pkg)
+        end
       end
     end
   end
