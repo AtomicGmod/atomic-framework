@@ -1,8 +1,8 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version_name = "Durian",
-    version = "0.4.0",
+    version_name = "Grape",
+    version = "0.5.0",
   }
 }
 
@@ -30,8 +30,9 @@ shared("atomic/utils/coroutine.lua")
 shared("atomic/utils/semver.lua")
 -- libraries
 shared("atomic/libraries/bind.lua")
+shared("atomic/libraries/network/common.lua")
 client("atomic/libraries/web.lua")
-server("atomic/libraries/command.lua")
+server("atomic/libraries/command/common.lua")
 server("atomic/libraries/mysql.lua")
 server("atomic/libraries/git.lua")
 -- package loading should be latest

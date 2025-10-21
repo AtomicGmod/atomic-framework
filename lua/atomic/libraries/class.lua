@@ -55,7 +55,8 @@ end
 ---@param name string
 ---@param packageOrId? Atomic.Package | string
 ---@param packageVersion? string
----@return Atomic.Class?
+---@generic T
+---@return T: Atomic.Class?
 function atomic.class.get(name, packageOrId, packageVersion)
   local pkgName = type(packageOrId) == "table" and packageOrId.id
       or type(packageOrId) == "string" and packageOrId
@@ -107,11 +108,13 @@ function atomic.class.accessors(class, ...)
   local vars = {...}
 
   for _, var in ipairs(vars) do
-    class["get" .. var] = function(self)
+    local varCapped = var:sub(1,1):upper() .. var:sub(2)
+
+    class["get" .. varCapped] = function(self)
       return self[var]
     end
 
-    class["set" .. var] = function(self, value)
+    class["set" .. varCapped] = function(self, value)
       self[var] = value
     end
   end
@@ -134,6 +137,16 @@ function atomic.class.register(class, package)
 
   ---@diagnostic disable-next-line
   storage[id][version][class._name] = class
+
+  atomic.class._storage = storage
+end
+
+function atomic.class.unregister(class, package)
+  local storage = atomic.class._storage
+  local id, version = package.id, package.version
+
+  ---@diagnostic disable-next-line
+  storage[id][version][class._name] = nil
 
   atomic.class._storage = storage
 end
