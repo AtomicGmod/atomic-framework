@@ -1,51 +1,29 @@
----@alias Atomic.Command.ArgumentKind "number" | "string" | "time" | "player"
+---@alias Atomic.Command.ArgumentKind "number" | "string" | "boolean" | "time" | "player"
 ---@alias Atomic.Command.ExecuteFunc function(executor: Player, arguments: table<string, Atomic.Command.ArgumentKind): string?
 
----@class Atomic.Command
----@field name string
----@field permission string
----@field arguments {[1]: string, [2]: Atomic.Command.ArgumentKind}[]
+---@class Atomic.Command: Atomic.Class
+---@field private _name string
+---@field private _permission string
+---@field private _arguments {[1]: string, [2]: Atomic.Command.ArgumentKind}[]
 ---@field private _execute Atomic.Command.ExecuteFunc
 ---@field private _enabled boolean Internal
-
-atomic.command = {
-	---@type table<string, Atomic.Command>
-	logger = atomic.logger.new("atomic.command"),
-	_storage = {}
-}
-
----@class Atomic.Command
-local command = {}
-command.__index = command
+local command = atomic.class.create("Command")
+atomic.class.register(command, atomic.class.pseudo)
 
 ---@param name string
 ---@param permission string
-function atomic.command.new(name, permission)
-	return setmetatable({ name = name, permission = permission, arguments = {}, enabled = true }, command)
-end
-
----@param name string
----@param command Atomic.Command
-function atomic.command.add(name, command)
- 	atomic.command._storage[name] = command
-end
-
----@param name string
----@return Atomic.Command?
-function atomic.command.get(name)
-	return atomic.command._storage[name]
-end
-
----@param name string
-function atomic.command.remove(name)
-	atomic.command._storage[name] = nil
+function command:init(name, permission)
+  self._name = name
+  self._permission = permission
+  self._arguments = {}
+  self._enabled = true
 end
 
 ---@param name string
 ---@param kind Atomic.Command.ArgumentKind
 ---@return self
 function command:argument(name, kind)
-	self.arguments[#self.arguments + 1] = { name, kind }
+	self._arguments[#self._arguments + 1] = { name, kind }
 
 	return self
 end
@@ -62,7 +40,7 @@ end
 ---@param msg string
 local function sayToPlayer(player, msg)
 	if (IsValid(player)) then
-		player:ChatPrint(msg)
+		player:ChatPrint(language.GetPhrase(msg))
 	else
 		atomic.command.logger:error("Failed to execute command due to: %s", msg)
 	end
@@ -86,12 +64,15 @@ end
 ---@private
 ---@param executor Player
 ---@param arguments table<string, Atomic.Command.ArgumentKind>
----@return thread
 function command:doExecute(executor, arguments)
-	local thread = coroutine.create(function()
+  if (not self._enabled) then
+    return
+  end
+
+  coroutine.start(function()
 		local couldExecute = hook.Run("CouldPlayerExecuteCommand", executor, self)
 
-		if (!couldExecute or hasRightToExecute(executor, self.permission)) then
+		if (!couldExecute or hasRightToExecute(executor, self._permission)) then
 			return sayToPlayer(executor, "#atomic.no_perms")
 		end
 
@@ -99,10 +80,6 @@ function command:doExecute(executor, arguments)
 
 		sayToPlayer(executor, err)
 	end)
-
-	coroutine.resume(thread)
-
-	return thread
 end
 
 ---@param b boolean

@@ -14,6 +14,9 @@
 ---@field private _events table<string, function>? `Internal` variable
 ---@field private _commands table<string, Atomic.Command>? `Internal` variable
 ---@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[]? `Internal` variable
+---@field private _classes table<string, Atomic.Class>?
+---@field private _netschemas table<string, Atomic.Network.Schema>?
+---@field private _netlisteners table<string, fun(message: Atomic.Network.Message)>?
 ---@field logger Atomic.Logger? `Internal` variable
 local package = atomic.class.create("Package")
 atomic.class.register(package, atomic.class.pseudo)
@@ -26,14 +29,18 @@ function package:init()
 
   local config = self.configuration or {}
 
+  self.logger = atomic.logger.new(prefix)
   self.configuration = atomic.class.new(configClass, nil, config, self)
   self._isLoaded = false
   self._events = {}
   self._commands = {}
   self._binds = {}
-  self.logger = atomic.logger.new(prefix)
+  self._classes = {}
+  self._netschemas = {}
+  self._netlisteners = {}
 end
 
+---@private
 function package:load()
   local files = self.files
 
@@ -57,6 +64,7 @@ function package:load()
   self:setup()
 end
 
+---@private
 function package:unload()
   self:cleanup()
 
@@ -72,12 +80,24 @@ function package:setup()
   end
 
   for name, callback in pairs(self._events) do
-    hook.Add(name, self:formatEventId(name), callback)
+    hook.Add(name, self:formatUniversalId(name), callback)
   end
 
   for _, data in ipairs(self._binds) do
     local regId = atomic.bind.bind(data.key, data.callback)
     data.registrationId = regId
+  end
+
+  for _, class in pairs(self._classes) do
+    atomic.class.register(class, self)
+  end
+
+  for _, schema in pairs(self._netschemas) do
+    atomic.network.register(schema)
+  end
+
+  for schemaName, schema in pairs(self._netlisteners) do
+    atomic.network.listen(self:formatUniversalId(schemaName), schema)
   end
 end
 
@@ -88,11 +108,24 @@ function package:cleanup()
   end
 
   for name in pairs(self._events) do
-    hook.Remove(name, self:formatEventId(name))
+    hook.Remove(name, self:formatUniversalId(name))
   end
 
   for _, data in ipairs(self._binds) do
     atomic.bind.unbind(data.registrationId)
+  end
+
+  for className in pairs(self._classes) do
+    atomic.class.unregister(className, self)
+  end
+
+  for _, schema in pairs(self._netschemas) do
+    ---@diagnostic disable-next-line
+    atomic.network.unregister(schema._name)
+  end
+
+  for schemaName in pairs(self._netlisteners) do
+    atomic.network.unlisten(self:formatUniversalId(schemaName))
   end
 end
 
@@ -121,7 +154,7 @@ end
 --- ```lua
 --- local package = atomic.package.current()
 ---
---- package:attachCommand(
+--- package:command(
 ---   atomic.command.new("example", "atomic.example")
 ---     :argument("user", "player")
 ---     :onExecute(function(executor, user)
@@ -130,7 +163,7 @@ end
 --- )
 --- ```
 ---@param command Atomic.Command
-function package:attachCommand(command)
+function package:command(command)
   self._commands[command.name] = command
 end
 
@@ -149,7 +182,7 @@ end
 --- Events
 
 ---@private
-function package:formatEventId(eventName)
+function package:formatUniversalId(eventName)
   return ("atomic:%s:%s"):format(self.id, eventName)
 end
 
@@ -186,9 +219,11 @@ end
 ---@param name string
 ---@generic T
 ---@return T: Atomic.Class
-function package:newClass(name)
+function package:class(name)
   local class = atomic.class.create(name)
-  atomic.class.register(class, self)
+
+  ---@diagnostic disable-next-line
+  self._classes[class._name] = class
 
   return class
 end
@@ -199,8 +234,54 @@ function package:registerClass(class)
   return atomic.class.register(class, self)
 end
 
+---@param className string
+function package:unregisterClass(className)
+  return atomic.class.unregister(self._classes[className], self)
+end
+
 --- Return package's registered class
 ---@param name string
 function package:getClass(name)
-  return atomic.class.get(name, self)
+  return self._classes[name]
+end
+
+--- Network
+
+---@param schemaName string
+---@return Atomic.Network.Schema
+function package:networkSchema(schemaName)
+  local schema = atomic.network.new(self:formatUniversalId(schemaName))
+  ---@diagnostic disable-next-line
+  self._netschemas[schemaName] = schema
+
+  return schema
+end
+
+---@param callback fun(message: Atomic.Network.Message)
+---@param schemaName string
+function package:onNetworkMessage(callback, schemaName)
+  self._netlisteners[schemaName] = callback
+end
+
+---@param name string
+---@param data table<string, any>
+---@param player Player?
+---@return string Message id
+function package:sendNetworkMessage(name, data, player)
+  local schema = self._netschemas[name]
+
+  ---@diagnostic disable-next-line
+  return atomic.network.send(schema._name, data, player)
+end
+
+---@async
+---@param name string
+---@param data table<string, any>
+---@param player Player?
+---@return table | string
+function package:sendNetworkMessageAsync(name, data, player)
+  local schema = self._netschemas[name]
+
+  ---@diagnostic disable-next-line
+  return atomic.network.sendAsync(schema._name, data, player)
 end

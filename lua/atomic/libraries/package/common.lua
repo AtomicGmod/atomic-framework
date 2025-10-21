@@ -119,12 +119,14 @@ function atomic.package.load(package)
     return
   end
 
+  ---@diagnostic disable-next-line
   if type(packageInstance.load) ~= "function" then
     atomic.log:err("package `%s`: load() is not a function", packageInstance.id)
     return
   end
 
   local ok, err = pcall(function()
+    ---@diagnostic disable-next-line
     packageInstance:load()
   end)
 

@@ -24,7 +24,7 @@ if (file.Size("data/atomic/mysql/credentials.json", "GAME") <= 0) then
 }]];
 
   file.Write("atomic/mysql/credentials.json", defaultJson)
-	logger:warn("The `credentials.json` file has just been created in `data/atomic/mysql/` folder. To work with MySQL, fill in the database connection credentials in this file.")
+	logger:warn("the `credentials.json` file has just been created in `data/atomic/mysql/` folder. to work with MySQL, fill in the database connection credentials in this file.")
 end
 
 ---@class Atomic.MySQL.Credentials
@@ -46,15 +46,15 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
   )
 
   atomic.mysql._database.onConnected = function(_)
-    logger:info("Successfully connected to the MySQL database")
+    logger:info("successfully connected to the MySQL database")
   end
 
   atomic.mysql._database.onConnectionFailed = function(_, err)
-    logger:err("Error while connecting to database: %s", err)
+    logger:err("error while connecting to database: %s", err)
   end
 
   atomic.mysql._database.onError = function(_, err, sql)
-    logger:debug("Error executing query `%s`: %s", sql, err)
+    logger:debug("error executing query `%s`: %s", sql, err)
   end
 
   atomic.mysql._database:connect()
@@ -90,18 +90,13 @@ end
 function atomic.mysql.query(query, ...)
   local co = coroutine.get()
 
-  local result, error
   local prepared = atomic.mysql._database:prepare(query)
   prepared.onSuccess = function(_, data)
-    result = data
-
-    coroutine.resume(co)
+    coroutine.resume(co, data)
   end
 
   prepared.onError = function(_, err)
-    error = err
-
-    coroutine.resume(co)
+    coroutine.resume(co, nil, err)
   end
 
   for index, value in ipairs({...}) do
@@ -111,7 +106,5 @@ function atomic.mysql.query(query, ...)
 
   prepared:start()
 
-  coroutine.yield()
-
-  return result, error
+  return coroutine.yield()
 end

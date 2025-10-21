@@ -1,5 +1,5 @@
 atomic.loader = atomic.loader or {
-  logger = atomic.logger.new("atomic.loader")
+  logger = atomic.logger.new("loader")
 }
 
 ---@param path string
