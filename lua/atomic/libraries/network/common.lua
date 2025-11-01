@@ -36,15 +36,14 @@ atomic.loader.shared("schema.lua")
 local logger = atomic.network.logger
 local schemas = atomic.network._storage.schemas
 local listeners = atomic.network._storage.listeners
+---@type Atomic.Network.Schema
 local schemaClass = atomic.class.get("NetworkSchema")
-
----@cast schemaClass Atomic.Package
 
 --- Creates new schema
 -- @param name string
 -- @return Atomic.Network.Schema
 function atomic.network.new(name)
-  return atomic.class.new(schemaClass, nil, name)
+  return atomic.class.new(schemaClass, name)
 end
 
 ---@param schema Atomic.Network.Schema

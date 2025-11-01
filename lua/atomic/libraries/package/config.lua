@@ -6,9 +6,16 @@
 --- when the package is initialized,
 --- which cannot be realized properly
 --- when working asynchronously with other databases.
+---
+--- update: in fact, it actually can be realized.
+--- the idea is move package initialization into coroutine, but
+--- before packages initialization we can load all configurations
+--- from remove database, and then, when we get configuration from
+--- a remote database, we can initialize all packages
 atomic.package.config = atomic.package.config or {}
 
 ---@alias ConfigurationContentType "string" | "integer" | "float" | "boolean" | "string[]", "number[]" | "json"
+
 ---@class Atomic.Package.Configuration.Raw
 ---@field default any
 ---@field description string
@@ -19,8 +26,8 @@ atomic.package.config = atomic.package.config or {}
 ---@field private _name string?
 ---@field private _memorized table<string, Atomic.Package.Configuration.Raw>
 ---@field private _package { id: string, version: string }
-local configClass = atomic.class.create("Configuration")
-atomic.class.register(configClass, atomic.class.pseudo)
+local Configuration = atomic.class.create("Configuration")
+atomic.class.register(Configuration, atomic.class.pseudo)
 
 if (not sql.TableExists("atomic_config")) then
   sql.Query([[CREATE TABLE IF NOT EXISTS atomic_config(
@@ -71,15 +78,17 @@ local types = {
 }
 
 ---@param configuration table<string, Atomic.Package.Configuration.Raw>
----@param package Atomic.Package
-function configClass:init(configuration, package)
+---@param packageId string
+---@param packageVer string
+function Configuration:init(configuration, packageId, packageVer)
   self._memorized = configuration
-  self._package = { id = package.id, version = package.version }
+  self._package = { id = packageId, version = packageVer }
   self._storage = {}
 
-  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=? AND package_version = ?", package.id, package.version)
+  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=? AND package_version = ?", packageId, packageVer)
   ---@cast data { name: string, value: string }[]
 
+  -- todo remove spaghetti code
   if istable(data) then
     for _, row in ipairs(data) do
       local raw = configuration[row.name]
@@ -106,7 +115,7 @@ function configClass:init(configuration, package)
     if not self._storage[name] then
       local handler = types[raw.type]
       local defaultValue = handler and handler.to(raw.default) or tostring(raw.default)
-      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, package_version, name, value) VALUES(?, ?, ?, ?)", package.id, package.version, name, defaultValue)
+      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, package_version, name, value) VALUES(?, ?, ?, ?)", packageId, packageVer, name, defaultValue)
       self._storage[name] = { type = raw.type, value = raw.default }
     end
   end
@@ -116,14 +125,14 @@ end
 ---@param key string
 ---@generic T
 ---@return T?
-function configClass:get(key)
+function Configuration:get(key)
   local entry = self._storage[key]
   return entry and entry.value or nil
 end
 
 ---@param key string
 ---@param value any
-function configClass:set(key, value)
+function Configuration:set(key, value)
   local entry = self._storage[key]
   if not entry then
     atomic.log:debug("attempt to set unknown key `%s` to config\n\tcalled from %s", key, debug.getcaller())

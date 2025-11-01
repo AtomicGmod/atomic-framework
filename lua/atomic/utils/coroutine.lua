@@ -1,7 +1,14 @@
 ---@param fun function
----@return boolean
+---@return boolean, ...any
 function coroutine.start(fun)
-  return coroutine.resume(coroutine.create(fun))
+  local isOk, err = coroutine.resume(coroutine.create(fun))
+
+  if (!isOk) then
+    local stack = debug.getcaller()
+    atomic.log:err("an error occured inside coroutine: " .. tostring(err) .. "\n\t" .. stack)
+  end
+
+  return isOk, err
 end
 
 --- Checks whether the current function is within a coroutine or not, and if not, throws an error.

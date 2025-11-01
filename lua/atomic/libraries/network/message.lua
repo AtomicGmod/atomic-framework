@@ -3,13 +3,13 @@
 ---@field private _sender Player
 ---@field private _id string
 ---@field private _isReplied boolean
-local message = atomic.class.create("NetworkMessage")
-atomic.class.register(message, atomic.class.pseudo)
+local NetworkMessage = atomic.class.create("NetworkMessage")
+atomic.class.register(NetworkMessage, atomic.class.pseudo)
 
 ---@param schemeName string
 ---@param sender Player
 ---@param id string
-function message:init(schemeName, sender, id)
+function NetworkMessage:init(schemeName, sender, id)
   self._scheme = schemeName
   self._sender = sender
   self._id = id
@@ -17,17 +17,17 @@ function message:init(schemeName, sender, id)
 end
 
 ---@return Player
-function message:getSender()
+function NetworkMessage:getSender()
   return self._sender
 end
 
 ---@return boolean
-function message:isReplied()
+function NetworkMessage:isReplied()
   return self._isReplied
 end
 
 ---@param data table<string, any>
-function message:reply(data)
+function NetworkMessage:reply(data)
   if (self._isReplied) then
     error("message `" .. self._id .. "` of scheme `" .. self._scheme .. "` is already replied!")
   end

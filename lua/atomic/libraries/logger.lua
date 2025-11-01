@@ -6,8 +6,8 @@ atomic.logger = atomic.logger or {
 
 ---@class Atomic.Logger: Atomic.Class
 ---@field prefix string
-local loggerClass = atomic.class.create("Logger")
-atomic.class.register(loggerClass, atomic.class.pseudo)
+local Logger = atomic.class.create("Logger")
+atomic.class.register(Logger, atomic.class.pseudo)
 
 --- Creates new instance of Logger
 ---@param prefix string
@@ -19,7 +19,7 @@ function atomic.logger.new(prefix)
     return cache
   end
 
-  local logger = atomic.class.new(loggerClass, {}, prefix)
+  local logger = atomic.class.new(Logger, prefix)
   ---@cast logger Atomic.Logger
 
   atomic.logger._storage[prefix] = logger
@@ -52,7 +52,7 @@ local levels = {
 local logvar = CreateConVar("atomic_log", "INFO", {FCVAR_ARCHIVE, FCVAR_PROTECTED}, "Minimum log level (INFO, DEBUG, WARN, ERR)")
 
 ---@param prefix string
-function loggerClass:init(prefix)
+function Logger:init(prefix)
   self.prefix = prefix
 end
 
@@ -61,7 +61,7 @@ end
 ---@param level string
 ---@param message string
 ---@param ... any
-function loggerClass:log(color, level, message, ...)
+function Logger:log(color, level, message, ...)
   local currentLevel = logvar:GetString():upper()
   local currentIdx = levels[currentLevel] or 1
   local msgIdx = levels[level] or 1
@@ -72,23 +72,23 @@ function loggerClass:log(color, level, message, ...)
   MsgN()
 end
 
-function loggerClass:trace(message, ...)
+function Logger:trace(message, ...)
   self:log(trace, "TRACE", message, ...)
 end
 
-function loggerClass:debug(message, ...)
+function Logger:debug(message, ...)
   self:log(debug, "DEBUG", message, ...)
 end
 
 
-function loggerClass:info(message, ...)
+function Logger:info(message, ...)
   self:log(info, "INFO", message, ...)
 end
 
-function loggerClass:warn(message, ...)
+function Logger:warn(message, ...)
   self:log(warn, "WARN", message, ...)
 end
 
-function loggerClass:err(message, ...)
+function Logger:err(message, ...)
   self:log(err, "ERR", message, ...)
 end

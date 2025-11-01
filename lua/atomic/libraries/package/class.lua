@@ -1,36 +1,39 @@
----@class Atomic.Package: Atomic.Class
+---@class Atomic.Package.Metadata
 ---@field id string
----@field nicename string
----@field description string?
+---@field title? string
+---@field description? string
 ---@field version string
----@field documentation string?
--- @field configuration Atomic.Package.Configuration?
+---@field documentation? string
+---@field configuration? table<string, Atomic.Package.Configuration.Raw>
 ---@field files table<"client" | "shared" | "server", string[]>
----@field dependencies table<string, string>?
----@field atomic { version: string }?
+---@field dependencies? table<"atomic" | string, string>
 ---@field kind? "system" | "library"
----@field private _path string? `Internal` variable
----@field private _isLoaded boolean? `Internal` variable
----@field private _events table<string, function>? `Internal` variable
----@field private _commands table<string, Atomic.Command>? `Internal` variable
----@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[]? `Internal` variable
+---@field private _path string? `Internal` field
+
+---@class Atomic.Package: Atomic.Class
+---@field private _metadata Atomic.Package.Metadata
+-- @field private _configuration Atomic.Package.Configuration
+---@field private _isLoaded boolean?
+---@field private _events table<string, function>?
+---@field private _commands table<string, Atomic.Command>?
+---@field private _binds { key: integer, callback: fun(player: Player), registrationId: integer }[]?
 ---@field private _classes table<string, Atomic.Class>?
 ---@field private _netschemas table<string, Atomic.Network.Schema>?
 ---@field private _netlisteners table<string, fun(message: Atomic.Network.Message)>?
----@field logger Atomic.Logger? `Internal` variable
-local package = atomic.class.create("Package")
-atomic.class.register(package, atomic.class.pseudo)
+---@field private _webviews table<string, Atomic.WebView>?
+---@field logger Atomic.Logger
+local Package = atomic.class.create("Package")
+atomic.class.register(Package, atomic.class.pseudo)
 
-local configClass = atomic.class.get("Configuration")
----@cast configClass Atomic.Package
+---@type Atomic.Package.Configuration
+local Configuration = atomic.class.get("Configuration")
 
-function package:init()
-  local prefix = (self.id:Split(".")[3] or "n/a"):lower()
+---@param metadata Atomic.Package.Metadata
+function Package:init(metadata)
+  local prefix = (metadata.id:Split(".")[3] or metadata.id):lower()
 
-  local config = self.configuration or {}
-
-  self.logger = atomic.logger.new(prefix)
-  self.configuration = atomic.class.new(configClass, nil, config, self)
+  self._metadata = metadata
+  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, metadata.version)
   self._isLoaded = false
   self._events = {}
   self._commands = {}
@@ -38,11 +41,13 @@ function package:init()
   self._classes = {}
   self._netschemas = {}
   self._netlisteners = {}
+  self._webviews = {}
+  self.logger = atomic.logger.new(prefix)
 end
 
 ---@private
-function package:load()
-  local files = self.files
+function Package:load()
+  local files = self._metadata.files
 
   if (not files) then
     return self.logger:warn("no files to include")
@@ -57,7 +62,8 @@ function package:load()
     end
 
     for _, filename in ipairs(filelist) do
-      include(self._path .. "/" .. filename)
+      ---@diagnostic disable-next-line
+      include(self._metadata._path .. "/" .. filename)
     end
   end
 
@@ -65,16 +71,16 @@ function package:load()
 end
 
 ---@private
-function package:unload()
+function Package:unload()
   self:cleanup()
 
-  self.logger:debug("package `%s@%s` unloaded successfully", self.id, self.version)
+  self.logger:debug("package `%s@%s` unloaded successfully", self._metadata.id, self._metadata.version)
 end
 
 --- Setup/Cleanup
 
 ---@private
-function package:setup()
+function Package:setup()
   for name, command in pairs(self._commands) do
     atomic.command.add(name, command)
   end
@@ -99,10 +105,14 @@ function package:setup()
   for schemaName, schema in pairs(self._netlisteners) do
     atomic.network.listen(self:formatUniversalId(schemaName), schema)
   end
+
+  for _, webview in pairs(self._webviews) do
+    atomic.webview.register(webview, self)
+  end
 end
 
 ---@private
-function package:cleanup()
+function Package:cleanup()
   for name in pairs(self._commands) do
     atomic.command.remove(name)
   end
@@ -127,6 +137,61 @@ function package:cleanup()
   for schemaName in pairs(self._netlisteners) do
     atomic.network.unlisten(self:formatUniversalId(schemaName))
   end
+
+  for name in pairs(self._webviews) do
+    atomic.webview.unregister(name, self)
+  end
+end
+
+--- Metadata
+
+---@return string
+function Package:getId()
+  return self._metadata.id
+end
+
+---@return string
+function Package:getVersion()
+  return self._metadata.version
+end
+
+---@return string
+function Package:getTitle()
+  return self._metadata.title
+end
+
+---@return string?
+function Package:getDocumentation()
+  return self._metadata.documentation
+end
+
+---@return string?
+function Package:getDescription()
+  return self._metadata.description
+end
+
+---@return boolean
+function Package:isSystem()
+  return self._metadata.kind == "system"
+end
+
+---@return boolean
+function Package:isLibrary()
+  return self._metadata.kind == "library"
+end
+
+---@return "system" | "library"
+function Package:getKind()
+  return self._metadata.kind or "system"
+end
+
+--- ```lua
+--- local config = package:getConfiguration()
+--- assert(config:get("someKey"), "hello, world")
+--- ```
+---@return Atomic.Package.Configuration
+function Package:getConfiguration()
+  return self._configuration
 end
 
 --- Binds
@@ -134,7 +199,7 @@ end
 ---@param key number
 ---@param callback fun(player: Player)
 ---@return integer registrationId
-function package:bind(key, callback)
+function Package:bind(key, callback)
   local id = #self._binds+1
 
   self._binds[id] = {
@@ -163,27 +228,16 @@ end
 --- )
 --- ```
 ---@param command Atomic.Command
-function package:command(command)
-  self._commands[command.name] = command
-end
-
---- Unregisters the command
----
---- ```lua
---- local package = atomic.package.current()
----
---- package:dettachCommand("example")
---- ```
----@param commandName string
-function package:dettachCommand(commandName)
-  self._commands[commandName] = nil
+function Package:command(command)
+  ---@diagnostic disable-next-line
+  self._commands[command._name] = command
 end
 
 --- Events
 
 ---@private
-function package:formatUniversalId(eventName)
-  return ("atomic:%s:%s"):format(self.id, eventName)
+function Package:formatUniversalId(eventName)
+  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._metadata.version, eventName)
 end
 
 --- Adds an event for listening
@@ -197,7 +251,7 @@ end
 --- ```
 ---@param eventName string Name of the event
 ---@param callback fun()
-function package:listen(eventName, callback)
+function Package:listen(eventName, callback)
   self._events[eventName] = callback
 end
 
@@ -209,7 +263,7 @@ end
 --- package:unlisten("PlayerDeath")
 --- ```
 ---@param eventName string
-function package:unlisten(eventName)
+function Package:unlisten(eventName)
   self._events[eventName] = nil
 end
 
@@ -219,7 +273,7 @@ end
 ---@param name string
 ---@generic T
 ---@return T: Atomic.Class
-function package:class(name)
+function Package:class(name)
   local class = atomic.class.create(name)
 
   ---@diagnostic disable-next-line
@@ -229,19 +283,8 @@ function package:class(name)
 end
 
 --- Return package's registered class
----@param class Atomic.Class
-function package:registerClass(class)
-  return atomic.class.register(class, self)
-end
-
----@param className string
-function package:unregisterClass(className)
-  return atomic.class.unregister(self._classes[className], self)
-end
-
---- Return package's registered class
 ---@param name string
-function package:getClass(name)
+function Package:getClass(name)
   return self._classes[name]
 end
 
@@ -249,7 +292,7 @@ end
 
 ---@param schemaName string
 ---@return Atomic.Network.Schema
-function package:networkSchema(schemaName)
+function Package:networkSchema(schemaName)
   local schema = atomic.network.new(self:formatUniversalId(schemaName))
   ---@diagnostic disable-next-line
   self._netschemas[schemaName] = schema
@@ -259,7 +302,7 @@ end
 
 ---@param callback fun(message: Atomic.Network.Message)
 ---@param schemaName string
-function package:onNetworkMessage(callback, schemaName)
+function Package:onNetworkMessage(callback, schemaName)
   self._netlisteners[schemaName] = callback
 end
 
@@ -267,7 +310,7 @@ end
 ---@param data table<string, any>
 ---@param player Player?
 ---@return string Message id
-function package:sendNetworkMessage(name, data, player)
+function Package:sendNetworkMessage(name, data, player)
   local schema = self._netschemas[name]
 
   ---@diagnostic disable-next-line
@@ -279,9 +322,32 @@ end
 ---@param data table<string, any>
 ---@param player Player?
 ---@return table | string
-function package:sendNetworkMessageAsync(name, data, player)
+function Package:sendNetworkMessageAsync(name, data, player)
   local schema = self._netschemas[name]
 
   ---@diagnostic disable-next-line
   return atomic.network.sendAsync(schema._name, data, player)
+end
+
+--- Creates new webview and automatically registeres it
+---@param name string
+---@param autoSpawn? boolean = true
+---@return Atomic.WebView
+function Package:webview(name, autoSpawn)
+  local folder = self._metadata.id .. "@" .. self._metadata.version
+  local path = "asset://garrysmod/resource/webviews/" .. folder
+
+  local webview = atomic.webview.new(name, path, autoSpawn)
+
+  ---@diagnostic disable-next-line
+  self._webviews[webview._name] = webview
+
+  return webview
+end
+
+--- Return package's registered webview
+---@param name string
+---@return Atomic.WebView
+function Package:getWebview(name)
+  return self._webviews[name]
 end

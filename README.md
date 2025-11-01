@@ -17,14 +17,14 @@ Each **package** is a self-contained unit — just like an addon — with built-
 
 ## Documentation
 Full documentation, API references, and examples are available here:
-👉 **[Atomic Framework Wiki](https://github.com/AtomicGmod/atomic-framework/wiki)**
+👉 **[Atomic Framework Wiki](https://github.com/TeamMeadows/atomic-framework/wiki)**
 
 ---
 
 ## Installation
 Optional dependencies:
 - For `atomic.mysql` → install [MySQLOO](https://github.com/FredyH/MySQLOO)
-- For `atomic.git` → install [gm_git](https://github.com/AtomicGmod/gm_git)
+- For `atomic.git` → install [gm_git](https://github.com/TeamMeadows/gm_git)
 
 Simply place the framework in your `addons/` folder.
 Atomic will automatically load and register available packages.
