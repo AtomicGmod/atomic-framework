@@ -10,7 +10,7 @@ local logger = atomic.i18n._logger
 ---@param language string
 ---@return table<string, string>
 function atomic.i18n.getTable(language)
-  return atomic.i18._storage[language]
+  return atomic.i18n._storage[language]
 end
 
 ---@param languageName string
@@ -89,7 +89,7 @@ end
 ---@vararg string | number
 ---@return string
 function atomic.i18n.getPhrase(language, phraseIndex, ...)
-  local langTable = atomic.i18._storage[language]
+  local langTable = atomic.i18n._storage[language]
   local phrase = langTable and langTable[phraseIndex]
 
   if (not langTable or not phrase) then
