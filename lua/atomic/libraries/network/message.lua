@@ -6,10 +6,15 @@
 local NetworkMessage = atomic.class.create("NetworkMessage")
 atomic.class.register(NetworkMessage, atomic.class.pseudo)
 
+---@param msg table
 ---@param schemeName string
 ---@param sender Player
 ---@param id string
-function NetworkMessage:init(schemeName, sender, id)
+function NetworkMessage:init(msg, schemeName, sender, id)
+  for k, v in pairs(msg) do
+    self[k] = v
+  end
+
   self._scheme = schemeName
   self._sender = sender
   self._id = id

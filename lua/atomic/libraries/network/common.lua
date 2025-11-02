@@ -17,7 +17,7 @@ atomic.network = atomic.network or {
     u32 = {function() return net.ReadUInt(32) end, function(n) net.WriteUInt(n, 32) end},
     u64 = {function() return net.ReadUInt64() end, function(n) net.WriteUInt64(n) end},
     string = {function() return net.ReadString() end, function(n) net.WriteString(n) end},
-    data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) net.WriteUInt(#n, 32) net.WriteData(util.Compress(n)) end},
+    data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) local c = util.Compress(n) net.WriteUInt(#c, 32) net.WriteData(c) end},
     data_uncomp = {function() return net.ReadData(net.ReadUInt(32)) end, function(n) net.WriteUInt(#n, 32) net.WriteData(n) end},
     entity = {function() return net.ReadEntity() end, function(n) net.WriteEntity(n) end},
     player = {function() return net.ReadPlayer() end, function(n) net.WritePlayer(n) end},
@@ -144,13 +144,9 @@ function atomic.network.receiver(len, player)
     return
   end
 
-  print(messageId, responseAwaiters)
-  td(responseAwaiters)
-
   local awaited = responseAwaiters[messageId]
 
   if (awaited) then
-    print("awaited")
     if (awaited.sendedTo ~= nil and awaited.sendedTo ~= player) then
       return logger:warn(
         "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`.",
