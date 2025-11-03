@@ -59,12 +59,26 @@ function WebView:queueJs(code)
   self._dhtml:QueueJavascript(code)
 end
 
----@generic T
----@param element T: Panel
+---@param element Panel
 ---@param htmlElementId string
 function WebView:attachVgui(element, htmlElementId)
-  -- todo
+  -- automatic hiding is necessary
+  -- so that the element is not displayed
+  -- until the target web element appears
+  element:Hide()
+
+  if (IsValid(self)) then
+    element:SetParent(self._dhtml)
+  end
+
   self._attachedVgui[htmlElementId] = element
+end
+
+---@private
+---@param id string
+---@return Panel?
+function WebView:getAttachedVgui(id)
+  return self._attachedVgui[id]
 end
 
 ---@param fname string
@@ -97,6 +111,10 @@ function WebView:spawn()
   self._dhtml:AddFunction("lua", "call", function(fname, ...)
     return self:callLuaFunction(fname, ...)
   end)
+
+  for _, panel in pairs(self._attachedVgui) do
+    panel:SetParent(self._dhtml)
+  end
 
   local events = self._eventsQueue
 
