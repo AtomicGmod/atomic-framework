@@ -1,6 +1,6 @@
 ---@class Atomic.Package.Metadata
 ---@field id string
----@field title? string
+---@field title string
 ---@field description? string
 ---@field version string
 ---@field documentation? string
@@ -8,6 +8,7 @@
 ---@field files table<"client" | "shared" | "server", string[]>
 ---@field dependencies? table<"atomic" | string, string>
 ---@field kind? "system" | "library"
+---@field icon? string Url to the icon of a package
 ---@field private _path string? `Internal` field
 
 ---@class Atomic.Package: Atomic.Class
@@ -68,10 +69,14 @@ function Package:load()
   end
 
   self:setup()
+
+  self:runLocalEvent("loaded")
 end
 
 ---@private
 function Package:unload()
+  self:runLocalEvent("unloading")
+
   self:cleanup()
 
   self.logger:debug("package `%s@%s` unloaded successfully", self._metadata.id, self._metadata.version)
@@ -170,6 +175,11 @@ function Package:getDescription()
   return self._metadata.description
 end
 
+---@return string?
+function Package:getIcon()
+  return self._metadata.icon
+end
+
 ---@return boolean
 function Package:isSystem()
   return self._metadata.kind == "system"
@@ -235,6 +245,8 @@ end
 
 --- Events
 
+---@alias Atomic.Package.LocalEvents "loaded" | "unloading"
+
 ---@private
 function Package:formatUniversalId(eventName)
   return ("atomic:%s:%s:%s"):format(self._metadata.id, self._metadata.version, eventName)
@@ -249,8 +261,8 @@ end
 ---   print(player:Nick() .. " has been died!")
 --- end, "PlayerDeath")
 --- ```
----@param eventName string Name of the event
----@param callback fun()
+---@param eventName string | Atomic.Package.LocalEvents Name of the event
+---@param callback fun(...: any): ...: any
 function Package:listen(eventName, callback)
   self._events[eventName] = callback
 end
@@ -265,6 +277,20 @@ end
 ---@param eventName string
 function Package:unlisten(eventName)
   self._events[eventName] = nil
+end
+
+--- Starts a local event that is only associated with the current package.
+---@private
+---@param name Atomic.Package.LocalEvents
+---@vararg any
+function Package:runLocalEvent(name, ...)
+  local listener = self._events[name]
+
+  if (not listener) then
+    return
+  end
+
+  listener(...)
 end
 
 --- Classes
