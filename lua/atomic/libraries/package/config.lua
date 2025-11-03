@@ -8,10 +8,13 @@
 --- when working asynchronously with other databases.
 ---
 --- update: in fact, it actually can be realized.
---- the idea is move package initialization into coroutine, but
---- before packages initialization we can load all configurations
---- from remove database, and then, when we get configuration from
---- a remote database, we can initialize all packages
+--- the idea is to move package initialization into a coroutine, but
+--- before initializing packages, we can load all configurations
+--- from a remote database, and then, once we get configurations
+--- from the remote database, we can initialize all packages.
+---
+--- another update: how the fuck are you gonna block the Lua thread
+--- while waiting for a response from the database? with an infinite loop?
 atomic.package.config = atomic.package.config or {}
 
 ---@alias ConfigurationContentType "string" | "integer" | "float" | "boolean" | "string[]", "number[]" | "json"
