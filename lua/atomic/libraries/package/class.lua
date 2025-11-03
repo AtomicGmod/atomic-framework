@@ -35,6 +35,7 @@ function Package:init(metadata)
   self._isEnabled = false
   self.logger = atomic.logger.new(prefix)
 
+  -- nil ~= "library" (if developer not provided kind of the package)
   if (self._metadata.kind ~= "library") then
     self:addRegistry()
   end
@@ -101,7 +102,7 @@ function Package:register(category, index, value)
   self._data[category][index] = value
 
   if self._isEnabled then
-    self._registry[category].add(index, value, self)
+    self._registry:add(category, self, index, value)
   end
 end
 
@@ -116,7 +117,7 @@ function Package:unregister(category, index)
   end
 
   if self._isEnabled then
-    self._registry[category].remove(index, value, self)
+    self._registry:remove(category, self, index, value)
   end
 
   self._data[category][index] = nil
@@ -161,9 +162,11 @@ end
 
 ---@private
 function Package:enable()
-  for category, entries in pairs(self._data) do
-    for index, entry in pairs(entries) do
-      self._registry:add(category, self, index, entry)
+  if (self._data) then
+    for category, entries in pairs(self._data) do
+      for index, entry in pairs(entries) do
+        self._registry:add(category, self, index, entry)
+      end
     end
   end
 
@@ -172,9 +175,11 @@ end
 
 ---@private
 function Package:disable()
-  for category, entries in pairs(self._data) do
-    for index, entry in pairs(entries) do
-      self._registry:remove(category, self, index, entry)
+  if (self._data) then
+    for category, entries in pairs(self._data) do
+      for index, entry in pairs(entries) do
+        self._registry:remove(category, self, index, entry)
+      end
     end
   end
 
@@ -320,6 +325,10 @@ end
 ---@param name Atomic.Package.LocalEvents
 ---@vararg any
 function Package:emitEvent(name, ...)
+  if (not self._data) then
+    return
+  end
+
   local listener = self._data.events[name]
 
   if (not listener) then

@@ -18,8 +18,8 @@ end
 
 ---@param category string
 ---@param package Atomic.Package
----@param key string
----@param value string
+---@param key string | integer
+---@param value any
 function PackageRegistry:add(category, package, key, value)
   local cat = self._storage[category]
 
@@ -32,8 +32,8 @@ end
 
 ---@param category string
 ---@param package Atomic.Package
----@param key string
----@param value string
+---@param key string | integer
+---@param value any
 function PackageRegistry:remove(category, package, key, value)
   local cat = self._storage[category]
 
