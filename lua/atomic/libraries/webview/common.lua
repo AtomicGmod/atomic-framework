@@ -36,12 +36,10 @@ end
 ---@param packageVersion? string
 ---@return Atomic.WebView?
 function atomic.webview.get(name, packageOrId, packageVersion)
-  ---@diagnostic disable-next-line
   local pkgName = type(packageOrId) == "table" and packageOrId._metadata.id
     or type(packageOrId) == "string" and packageOrId
     or not packageOrId and "atomic"
 
-    ---@diagnostic disable-next-line
   local pkgVersion = type(packageOrId) == "table" and packageOrId._metadata.version
     or type(packageVersion) == "string" and packageVersion
     or pkgName == "atomic" and atomic.meta.version
@@ -54,7 +52,6 @@ end
 ---@param package Atomic.Package
 function atomic.webview.register(webview, package)
   local storage = atomic.webview._storage
-  ---@diagnostic disable-next-line
   local id, version = package._metadata.id, package._metadata.version
 
   if (type(storage[id]) ~= "table") then
@@ -65,7 +62,6 @@ function atomic.webview.register(webview, package)
     storage[id][version] = {}
   end
 
-  ---@diagnostic disable-next-line
   storage[id][version][webview._name] = webview
 end
 
@@ -73,10 +69,8 @@ end
 ---@param package Atomic.Package
 function atomic.webview.unregister(name, package)
   local storage = atomic.webview._storage
-  ---@diagnostic disable-next-line
   local id, version = package._metadata.id, package._metadata.version
 
-  ---@diagnostic disable-next-line
   storage[id][version][name] = nil
 
   atomic.webview._storage = storage

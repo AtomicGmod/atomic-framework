@@ -48,7 +48,6 @@ end
 
 ---@param schema Atomic.Network.Schema
 function atomic.network.register(schema)
-  ---@diagnostic disable-next-line
   schemas[schema._name] = schema
 end
 
@@ -94,7 +93,6 @@ function atomic.network.send(schemaName, data, player, id)
   schema:writePackage(data)
 
   if (SERVER and IsValid(player)) then
-    ---@diagnostic disable-next-line
     net.Send(player)
   elseif (CLIENT) then
     net.SendToServer()

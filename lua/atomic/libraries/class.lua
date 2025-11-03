@@ -33,7 +33,6 @@ function atomic.class.create(name, parent)
   local class = setmetatable({ _name = name }, { __index = parent or classMt })
   class.__index = class
   class.__tostring = function(self)
-    ---@diagnostic disable-next-line
     return "instance of " .. tostring(self._name)
   end
 
@@ -61,12 +60,10 @@ end
 ---@generic T
 ---@return T: Atomic.Class?
 function atomic.class.get(name, packageOrId, packageVersion)
-  ---@diagnostic disable-next-line
   local pkgName = type(packageOrId) == "table" and packageOrId._metadata.id
       or type(packageOrId) == "string" and packageOrId
       or not packageOrId and "atomic"
 
-  ---@diagnostic disable-next-line
   local pkgVersion = type(packageOrId) == "table" and packageOrId._metadata.version
       or type(packageVersion) == "string" and packageVersion
       or pkgName == "atomic" and atomic.meta.version
@@ -129,7 +126,6 @@ end
 ---@param package Atomic.Package
 function atomic.class.register(class, package)
   local storage = atomic.class._storage
-  ---@diagnostic disable-next-line
   local id, version = package._metadata.id, package._metadata.version
 
   if (type(storage[id]) ~= "table") then
@@ -140,7 +136,6 @@ function atomic.class.register(class, package)
     storage[id][version] = {}
   end
 
-  ---@diagnostic disable-next-line
   storage[id][version][class._name] = class
 
   atomic.class._storage = storage
@@ -150,7 +145,6 @@ function atomic.class.unregister(class, package)
   local storage = atomic.class._storage
   local id, version = package.id, package.version
 
-  ---@diagnostic disable-next-line
   storage[id][version][class._name] = nil
 
   atomic.class._storage = storage
