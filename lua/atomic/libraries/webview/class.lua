@@ -49,8 +49,15 @@ function WebView:event(payload, eventName)
   if (not IsValid(self)) then
     self._eventsQueue[#self._eventsQueue+1] = event
   else
-    self._dhtml:QueueJavascript(atomic.webview.formatEvent(event))
+
+  self:rawEvent()
   end
+end
+
+---@private
+---@param event string
+function WebView:rawEvent(event)
+  self._dhtml:QueueJavascript(atomic.webview.formatEvent(event))
 end
 
 ---@generic T
