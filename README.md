@@ -14,6 +14,9 @@ Each **package** is a self-contained unit — just like an addon — with built-
 - Expandable with **atomic.\*** libraries (i18n, command, network, etc.)
 - Designed for both **addons** and **gamemodes**
 
+## Examples
+You can quickly view [examples](./examples/README.md) of packages (addons) made on Atomic Framework to understand how it works.
+
 ---
 
 ## Documentation

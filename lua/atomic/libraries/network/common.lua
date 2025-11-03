@@ -93,6 +93,7 @@ function atomic.network.send(schemaName, data, player, id)
   schema:writePackage(data)
 
   if (SERVER and IsValid(player)) then
+    ---@cast player Player
     net.Send(player)
   elseif (CLIENT) then
     net.SendToServer()
