@@ -2,7 +2,7 @@
 ---@field private _name string
 ---@field private _parentDir string
 ---@field private _dhtml DHTML
----@field private _eventsQueue { payload: table<string, any>, eventName: string }[]
+---@field private _eventsQueue string[]
 ---@field private _funcs table<string, fun()>
 ---@field private _attachedVgui table<string, Panel>
 ---@field private _autoSpawn boolean
@@ -44,20 +44,19 @@ end
 WebView.IsValid = WebView.isValid
 
 function WebView:event(payload, eventName)
-  local event = { payload = payload, eventName = eventName }
+  local event = atomic.webview.formatEvent({ payload = payload, eventName = eventName })
 
-  if (not IsValid(self)) then
-    self._eventsQueue[#self._eventsQueue+1] = event
+  if (IsValid(self)) then
+    self:queueJs(event)
   else
-
-  self:rawEvent()
+    self._eventsQueue[#self._eventsQueue+1] = event
   end
 end
 
 ---@private
----@param event string
-function WebView:rawEvent(event)
-  self._dhtml:QueueJavascript(atomic.webview.formatEvent(event))
+---@param code string
+function WebView:queueJs(code)
+  self._dhtml:QueueJavascript(code)
 end
 
 ---@generic T
@@ -99,13 +98,11 @@ function WebView:spawn()
     return self:callLuaFunction(fname, ...)
   end)
 
-  local format = atomic.webview.formatEvent
-  local queue = self._eventsQueue
+  local events = self._eventsQueue
 
-  if (#queue > 0) then
-    for _, payload in ipairs(queue) do
-      -- todo DRY in :event method
-      self._dhtml:QueueJavascript(format(payload))
+  if (#events > 0) then
+    for _, event in ipairs(events) do
+      self:queueJs(event)
     end
   end
 end
