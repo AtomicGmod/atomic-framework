@@ -7,12 +7,12 @@
 ---@field private _arguments {[1]: string, [2]: Atomic.Command.ArgumentKind}[]
 ---@field private _execute Atomic.Command.ExecuteFunc
 ---@field private _enabled boolean Internal
-local command = atomic.class.create("Command")
-atomic.class.register(command, atomic.class.pseudo)
+local Command = atomic.class.create("Command")
+atomic.class.register(Command, atomic.class.pseudo)
 
 ---@param name string
 ---@param permission string
-function command:init(name, permission)
+function Command:init(name, permission)
   self._name = name
   self._permission = permission
   self._arguments = {}
@@ -22,7 +22,7 @@ end
 ---@param name string
 ---@param kind Atomic.Command.ArgumentKind
 ---@return self
-function command:argument(name, kind)
+function Command:argument(name, kind)
 	self._arguments[#self._arguments + 1] = { name, kind }
 
 	return self
@@ -30,7 +30,7 @@ end
 
 ---@param executable Atomic.Command.ExecuteFunc
 ---@return self
-function command:onExecute(executable)
+function Command:onExecute(executable)
 	self._execute = executable
 
 	return self
@@ -64,7 +64,7 @@ end
 ---@private
 ---@param executor Player
 ---@param arguments table<string, Atomic.Command.ArgumentKind>
-function command:doExecute(executor, arguments)
+function Command:doExecute(executor, arguments)
   if (not self._enabled) then
     return
   end
@@ -83,7 +83,7 @@ function command:doExecute(executor, arguments)
 end
 
 ---@param b boolean
-function command:setEnabled(b)
+function Command:setEnabled(b)
 	self._enabled = b
 
 	return self

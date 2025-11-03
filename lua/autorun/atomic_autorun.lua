@@ -1,8 +1,8 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version_name = "Grape",
-    version = "0.5.0",
+    version_name = "Peach",
+    version = "0.6.0",
   }
 }
 
@@ -23,15 +23,22 @@ includeSh("atomic/libraries/loader.lua")
 
 local loader = atomic.loader
 local client, shared, server = loader.client, loader.shared, loader.server
+---@include
 -- utils
 shared("atomic/utils/table.lua")
 shared("atomic/utils/debug.lua")
 shared("atomic/utils/coroutine.lua")
 shared("atomic/utils/semver.lua")
+shared("atomic/utils/global.lua")
 -- libraries
+shared("atomic/libraries/i18n.lua")
 shared("atomic/libraries/bind.lua")
 shared("atomic/libraries/network/common.lua")
-client("atomic/libraries/web.lua")
+shared("atomic/libraries/time/common.lua")
+shared("atomic/libraries/benchmark.lua")
+client("atomic/libraries/webview/class.lua")
+client("atomic/libraries/webview/common.lua")
+client("atomic/libraries/webview/basicfuncs.lua")
 server("atomic/libraries/command/common.lua")
 server("atomic/libraries/mysql.lua")
 server("atomic/libraries/git.lua")

@@ -2,24 +2,24 @@ atomic.package = atomic.package or {
   ---@type table<string, table<string, Atomic.Package>>
   _storage = {},
   ---@type table<string, { [1]: string, [2]: string }> table<Path, Package>
-  _pathMap = {}
+  _pathMap = {},
 }
 
 ---@include
 atomic.loader.shared("config.lua")
+atomic.loader.shared("registry.lua")
 atomic.loader.shared("class.lua")
 
+---@type Atomic.Package
 local packageClass = atomic.class.get("Package")
 
----@cast packageClass Atomic.Package
-
 ---@private
----@param metadata Atomic.Package
+---@param metadata Atomic.Package.Metadata
 ---@return Atomic.Package
 function atomic.package.new(metadata)
   local package = atomic.class.new(packageClass, metadata)
   ---@cast package Atomic.Package
-  local id, version = package.id, package.version
+  local id, version = metadata.id, metadata.version
   local storage = atomic.package._storage
 
   if (not storage[id]) then
@@ -30,6 +30,10 @@ function atomic.package.new(metadata)
 
   return package
 end
+
+--- FLEX! it makes atomic more flexible
+--- for dependency check (e.g dependencies = { atomic = "~0.6.0" })
+atomic.class.pseudo = atomic.package.new(atomic.class.pseudo._metadata)
 
 ---@param id string
 ---@param version string
@@ -61,7 +65,7 @@ end
 --- ```
 ---@param path string
 ---@param isInGamemode boolean?
----@return Atomic.Package[]?
+---@return Atomic.Package.Metadata[]?
 function atomic.package.find(path, isInGamemode)
   local gameRelativePath = (isInGamemode and "gamemodes/" or "") .. path
   local pkg = gameRelativePath .. "/package.lua"
@@ -74,6 +78,8 @@ function atomic.package.find(path, isInGamemode)
       return
     end
 
+    ---@cast package Atomic.Package.Metadata
+
     package._path = path
 
     return { package }
@@ -85,10 +91,12 @@ function atomic.package.find(path, isInGamemode)
   for _, package in ipairs(packages) do
     local pkgPath = gameRelativePath .. "/" .. package .. "/package.lua"
     if file.Exists(pkgPath, gameDir) then
-      local packageData = atomic.loader.shared(path .. "/" .. package .. "/package.lua")
-      packageData._path = path .. "/" .. package
-      if type(packageData) == "table" then
-        table.insert(result, packageData)
+      local metadata = atomic.loader.shared(path .. "/" .. package .. "/package.lua")
+
+      if type(metadata) == "table" then
+        ---@cast metadata Atomic.Package.Metadata
+        metadata._path = path .. "/" .. package
+        table.insert(result, metadata)
       end
     end
   end
@@ -96,158 +104,117 @@ function atomic.package.find(path, isInGamemode)
   return #result > 0 and result or nil
 end
 
---- Loading an package
----@param package Atomic.Package
-function atomic.package.load(package)
-  ---@diagnostic disable-next-line
-  if type(package) ~= "table" or not package.id or not package.version or not package._path then
-    atomic.log:warn("invalid package, skipping.")
+--- Loades an package
+---@param metadata Atomic.Package.Metadata
+function atomic.package.load(metadata)
+  if type(metadata) ~= "table" or not metadata.id or not metadata.version or not metadata._path then
+    atomic.log:warn("invalid package to load")
     return
   end
 
-  local packageInstance = atomic.package.new(package)
+  local package = atomic.package.new(metadata)
+  local id, version = metadata.id, metadata.version
 
-  ---@diagnostic disable-next-line
-  atomic.package._pathMap[package._path] = { package.id, package.version }
+  atomic.package._pathMap[metadata._path] = { id, version }
 
-  ---@cast packageInstance Atomic.Package
-  if packageInstance.atomic and not util.IsVersionSuitable(atomic.meta.version, packageInstance.atomic.version) then
-    atomic.log:err(
-      "package `%s` requires atomic %s, but current is %s",
-      packageInstance.id, tostring(packageInstance.atomic.version), tostring(atomic.meta.version)
-    )
-    return
+  -- dependencies check
+  local deps = metadata.dependencies
+  if (deps) then
+    for depId, depVersion in pairs(deps) do
+      local dep = atomic.package.get(depId, depVersion)
+
+      if (not dep) then
+        return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
+      end
+    end
   end
 
-  ---@diagnostic disable-next-line
-  if type(packageInstance.load) ~= "function" then
-    atomic.log:err("package `%s`: load() is not a function", packageInstance.id)
-    return
-  end
-
-  local ok, err = pcall(function()
-    ---@diagnostic disable-next-line
-    packageInstance:load()
+  local isOk, err = pcall(function()
+    package:load()
   end)
 
-  if not ok then
-    atomic.log:err("failed to load package `%s`: %s", packageInstance.id, err)
+  if (not isOk) then
+    atomic.log:err("failed to load package `%s@%s`: %s", id, version, err)
   end
 end
 
---- Loading packages, sorting them according to dependencies.
----@param packages Atomic.Package[]
+---@param packages Atomic.Package.Metadata[]
 function atomic.package.loadMany(packages)
   if type(packages) ~= "table" or #packages == 0 then
-    atomic.log:warn("no packages to load, skipping.")
+    atomic.log:warn("no packages to load")
     return
   end
 
-  local packagesCache = {}
+  local loadingSort = {}
+  local visited = {}
 
-  local findPackage = function(id, version)
-    local packagesCached = packagesCache[id]
-    local cached = packagesCached and packagesCached[version]
-
-    return cached or atomic.package.get(id, version)
+  local getKey = function(package)
+    return package.id .. "@" .. package.version
   end
 
-  local insertPackage = function(id, version, package)
-    if (not packagesCache[id]) then
-      packagesCache[id] = {}
-    end
-
-    packagesCache[id][version] = package
-  end
-
-  for _, pkg in ipairs(packages) do
-    local id, version = pkg.id, pkg.version
-    if not id or not version then
-      atomic.log:err("invalid package detected (missing id/version), skipping.")
-      continue
-    end
-
-    if findPackage(id, version) then
-      atomic.log:warn("duplicate package `%s@%s` ignored.", pkg.id, pkg.version)
-    else
-      insertPackage(id, version, pkg)
-    end
-  end
-
-  local toRemove = {}
-
-  for id, pkg in pairs(packagesCache) do
-    local deps = pkg.dependencies
-    if type(deps) == "table" then
-      for depId, depVersion in pairs(deps) do
-        if not findPackage(depId, depVersion) then
-          atomic.log:err("dependency `%s` version %s is required for `%s`, but was not found.", depId, depVersion, pkg.id)
-          table.insert(toRemove, id)
-          break
-        end
+  local findDependency = function(depId, depVersion)
+    for _, package in ipairs(packages) do
+      if package.id == depId and util.IsVersionSuitable(depVersion, package.version) then
+        return package
       end
     end
-  end
 
-  for _, id in ipairs(toRemove) do
-    packagesCache[id] = nil
-  end
+    local cached = atomic.package.get(depId, depVersion)
 
-  if table.Count(packagesCache) == 0 then
-    return
-  end
-
-  local indegree = {}
-  for id in pairs(packagesCache) do
-    -- todo version
-    indegree[id] = 0
-  end
-
-  for _, pkg in pairs(packagesCache) do
-    if type(pkg.dependencies) == "table" then
-      for depId, depVersion in pairs(pkg.dependencies) do
-        if findPackage(depId, depVersion) then
-          indegree[pkg.id] = (indegree[pkg.id] or 0) + 1
-        end
-      end
+    if (cached) then
+      packages[#packages+1] = cached._metadata
+      return cached._metadata
     end
   end
 
-  local queue = {}
-  for id, degree in pairs(indegree) do
-    if degree == 0 then table.insert(queue, id) end
-  end
+  local visit
+  visit = function(package)
+    local key = getKey(package)
 
-  local loadOrder = {}
-  while #queue > 0 do
-    local id = table.remove(queue, 1)
-    for _, pkg in pairs(packagesCache) do
-      if type(pkg.dependencies) == "table" then
-        for depId, depVersion in pairs(pkg.dependencies) do
-          local depdendency = findPackage(depId, depVersion)
-          if depdendency and depId == depdendency.id then
-            indegree[pkg.id] = indegree[pkg.id] - 1
-            if indegree[pkg.id] == 0 then table.insert(queue, pkg.id) end
-          end
-        end
+    if visited[key] == "temp" then
+      atomic.log:err("dependency cycle detected on %s@%s", package.id, package.version)
+      return
+    end
+
+    if visited[key] then
+      return
+    end
+
+    visited[key] = "temp"
+
+    local deps = package.dependencies or {}
+
+    for depId, depVersion in pairs(deps) do
+      if (depId == "atomic") then
+        continue
+      end
+
+      local depPkg = findDependency(depId, depVersion)
+
+      if not depPkg then
+        atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, package.id, package.version)
+      else
+        visit(depPkg)
       end
     end
-    table.insert(loadOrder, id)
+
+    visited[key] = true
+    loadingSort[#loadingSort+1] = package
   end
 
-  if #loadOrder ~= table.Count(packagesCache) then
-    atomic.log:err("dependency cycle detected! unable to resolve load order.")
-    return
+  for _, package in ipairs(packages) do
+    visit(package)
   end
 
-  for _, orderId in ipairs(loadOrder) do
-    for id, pkgs in pairs(packagesCache) do
-      for _version, pkg in pairs(pkgs) do
-        if id == orderId then
-          atomic.package.load(pkg)
-        end
-      end
-    end
+  local keys = {}
+  for _, package in ipairs(loadingSort) do
+    keys[#keys+1] = getKey(package)
+  end
+
+  atomic.log:trace("package loading order\n\t %s", table.concat(keys, ", "))
+
+  for _, package in ipairs(loadingSort) do
+    atomic.package.load(package)
   end
 end
 
@@ -257,19 +224,18 @@ local pathMap = atomic.package._pathMap
 function atomic.package.current()
   -- 2 'cause 0 its lua engine, 1 its this function, and 2 is the caller
   local info = debug.getinfo(2, "S")
-
-  if not info then
+  if (not info) then
     return
   end
 
   local src = info.short_src or info.source
-  if not src then
+  if (not src) then
     return
   end
 
   local cached = cache[src]
-  if cached ~= nil then
-    return cached ~= false and cached or nil
+  if (cached) then
+    return cached
   end
 
   local clean = src:gsub("^@", "")

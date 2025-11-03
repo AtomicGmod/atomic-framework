@@ -20,7 +20,8 @@
         "/**/"
   ],
   "Lua.diagnostics.disable": [
-    "duplicate-set-field"
+    "duplicate-set-field",
+    "invisible"
   ],
   "Lua.workspace.checkThirdParty": false,
     "diagnostics.globals": [

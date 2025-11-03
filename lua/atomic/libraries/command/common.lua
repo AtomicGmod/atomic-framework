@@ -14,7 +14,7 @@ local commandClass = atomic.class.get("Command", atomic.class.pseudo)
 ---@param permission string
 ---@return Atomic.Command
 function atomic.command.new(name, permission)
-  return atomic.class.new(commandClass, nil, name, permission)
+  return atomic.class.new(commandClass, name, permission)
 end
 
 ---@param name string
@@ -34,6 +34,7 @@ function atomic.command.remove(name)
 	atomic.command._storage[name] = nil
 end
 
+---@diagnostic disable-next-line TODO
 ---@param command string
 ---@vararg any
 ---@return table<string, any>

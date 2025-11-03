@@ -5,10 +5,13 @@ atomic.class = atomic.class or {
       [atomic.meta.version] = {}
     }
   },
-
-  ---@type Atomic.Package
-  ---@diagnostic disable-next-line
-  pseudo = { id = "atomic", version = atomic.meta.version };
+  pseudo = {
+    _metadata = {
+      id = "atomic",
+      version = atomic.meta.version,
+      documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
+    }
+  }
 }
 
 ---@class Atomic.Class
@@ -30,7 +33,6 @@ function atomic.class.create(name, parent)
   local class = setmetatable({ _name = name }, { __index = parent or classMt })
   class.__index = class
   class.__tostring = function(self)
-    ---@diagnostic disable-next-line
     return "instance of " .. tostring(self._name)
   end
 
@@ -58,11 +60,11 @@ end
 ---@generic T
 ---@return T: Atomic.Class?
 function atomic.class.get(name, packageOrId, packageVersion)
-  local pkgName = type(packageOrId) == "table" and packageOrId.id
+  local pkgName = type(packageOrId) == "table" and packageOrId._metadata.id
       or type(packageOrId) == "string" and packageOrId
       or not packageOrId and "atomic"
 
-  local pkgVersion = type(packageOrId) == "table" and packageOrId.version
+  local pkgVersion = type(packageOrId) == "table" and packageOrId._metadata.version
       or type(packageVersion) == "string" and packageVersion
       or pkgName == "atomic" and atomic.meta.version
 
@@ -76,12 +78,11 @@ end
 --- ```
 ---
 ---@generic T
----@param class Atomic.Class
----@param tab T? Content of the instance
----@vararg any
+---@param class T: Atomic.Class
+---@vararg any Arguments to be passed to the class constructor
 ---@return T: Atomic.Class
-function atomic.class.new(class, tab, ...)
-  local instance = setmetatable(tab or {}, class)
+function atomic.class.new(class, ...)
+  local instance = setmetatable({}, class)
 
   if (type(instance.init) == "function") then
     instance:init(...)
@@ -125,7 +126,7 @@ end
 ---@param package Atomic.Package
 function atomic.class.register(class, package)
   local storage = atomic.class._storage
-  local id, version = package.id, package.version
+  local id, version = package._metadata.id, package._metadata.version
 
   if (type(storage[id]) ~= "table") then
     storage[id] = {}
@@ -135,7 +136,6 @@ function atomic.class.register(class, package)
     storage[id][version] = {}
   end
 
-  ---@diagnostic disable-next-line
   storage[id][version][class._name] = class
 
   atomic.class._storage = storage
@@ -145,7 +145,6 @@ function atomic.class.unregister(class, package)
   local storage = atomic.class._storage
   local id, version = package.id, package.version
 
-  ---@diagnostic disable-next-line
   storage[id][version][class._name] = nil
 
   atomic.class._storage = storage

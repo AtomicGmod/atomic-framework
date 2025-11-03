@@ -17,7 +17,7 @@ atomic.network = atomic.network or {
     u32 = {function() return net.ReadUInt(32) end, function(n) net.WriteUInt(n, 32) end},
     u64 = {function() return net.ReadUInt64() end, function(n) net.WriteUInt64(n) end},
     string = {function() return net.ReadString() end, function(n) net.WriteString(n) end},
-    data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) net.WriteUInt(#n, 32) net.WriteData(util.Compress(n)) end},
+    data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) local c = util.Compress(n) net.WriteUInt(#c, 32) net.WriteData(c) end},
     data_uncomp = {function() return net.ReadData(net.ReadUInt(32)) end, function(n) net.WriteUInt(#n, 32) net.WriteData(n) end},
     entity = {function() return net.ReadEntity() end, function(n) net.WriteEntity(n) end},
     player = {function() return net.ReadPlayer() end, function(n) net.WritePlayer(n) end},
@@ -36,20 +36,18 @@ atomic.loader.shared("schema.lua")
 local logger = atomic.network.logger
 local schemas = atomic.network._storage.schemas
 local listeners = atomic.network._storage.listeners
+---@type Atomic.Network.Schema
 local schemaClass = atomic.class.get("NetworkSchema")
-
----@cast schemaClass Atomic.Package
 
 --- Creates new schema
 -- @param name string
 -- @return Atomic.Network.Schema
 function atomic.network.new(name)
-  return atomic.class.new(schemaClass, nil, name)
+  return atomic.class.new(schemaClass, name)
 end
 
 ---@param schema Atomic.Network.Schema
 function atomic.network.register(schema)
-  ---@diagnostic disable-next-line
   schemas[schema._name] = schema
 end
 
@@ -95,7 +93,7 @@ function atomic.network.send(schemaName, data, player, id)
   schema:writePackage(data)
 
   if (SERVER and IsValid(player)) then
-    ---@diagnostic disable-next-line
+    ---@cast player Player
     net.Send(player)
   elseif (CLIENT) then
     net.SendToServer()
@@ -145,13 +143,9 @@ function atomic.network.receiver(len, player)
     return
   end
 
-  print(messageId, responseAwaiters)
-  td(responseAwaiters)
-
   local awaited = responseAwaiters[messageId]
 
   if (awaited) then
-    print("awaited")
     if (awaited.sendedTo ~= nil and awaited.sendedTo ~= player) then
       return logger:warn(
         "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`.",
