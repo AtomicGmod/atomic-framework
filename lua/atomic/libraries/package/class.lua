@@ -397,6 +397,14 @@ function Package:sendNetworkMessage(name, data, player)
   return atomic.network.send(schema._name, data, player)
 end
 
+---@param name string
+---@param data table<string, any>
+function Package:broadcastNetworkMessage(name, data)
+  local schema = self._data.netschemas[name]
+
+  atomic.network.send(schema._name, data, player.GetHumans())
+end
+
 ---@async
 ---@param name string
 ---@param data table<string, any>
