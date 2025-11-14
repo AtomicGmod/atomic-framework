@@ -247,6 +247,18 @@ function Package:getConfiguration()
   return self._configuration
 end
 
+---@param id string
+---@return Atomic.Package?
+function Package:getDependency(id)
+  local version = (self._metadata.dependencies or {})[id]
+
+  if (not version) then
+    return
+  end
+
+  return atomic.package.get(id, version)
+end
+
 --- Binds
 
 ---@param key number
