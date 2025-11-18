@@ -1,5 +1,11 @@
-# Atomic Framework
-**No more magic.**
+<h1 align="center">
+  <img src="assets/logo.png"/>
+  <p align="center">Atomic Framework</p>
+
+  <img src="https://img.shields.io/github/release/TeamMeadows/atomic-framework.svg">
+  <img src="https://img.shields.io/github/issues/TeamMeadows/atomic-framework.svg">
+  <img src="https://img.shields.io/github/license/TeamMeadows/atomic-framework.svg">
+</h1>
 
 Atomic is a flexible, OOP-driven framework for building Garry’s Mod addons and gamemodes with a clean, modular architecture.
 Each **package** is a self-contained unit — just like an addon — with built-in dependency management and powerful libraries for writing structured, maintainable Lua code.
@@ -45,3 +51,6 @@ Discussions and proposals are also encouraged in the issue tracker.
 ## License
 This project is licensed under the **GNU General Public License v3.0**.
 See the [LICENSE](./LICENSE) file for more details.
+
+<!-- "atomic powered" usage -->
+<!-- <a href="https://github.com/TeamMeadows/atomic-framework"><img src="assets/powered.png"></a> -->
