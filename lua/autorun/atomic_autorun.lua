@@ -2,7 +2,7 @@ atomic = {
   meta = {
     author = "smokingplaya",
     version_name = "Peach",
-    version = "0.6.0",
+    version = "0.6.1",
   }
 }
 
@@ -44,6 +44,7 @@ server("atomic/libraries/mysql.lua")
 server("atomic/libraries/git.lua")
 -- package loading should be latest
 shared("atomic/libraries/package/common.lua")
+shared("atomic/utils/aliases.lua")
 
 atomic.log = atomic.logger.new("atomic")
 

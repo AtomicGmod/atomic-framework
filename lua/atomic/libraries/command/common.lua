@@ -1,6 +1,6 @@
 atomic.command = {
-	---@type table<string, Atomic.Command>
 	logger = atomic.logger.new("command"),
+	---@type table<string, Atomic.Command>
 	_storage = {}
 }
 

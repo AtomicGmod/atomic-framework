@@ -1,5 +1,5 @@
 ---@class ExamplePackagePing: Atomic.Package
-local package = atomic.package.current()
+local package = current()
 
 --- Registering new Network Schema
 --- that will be visible on both sides - on client and server

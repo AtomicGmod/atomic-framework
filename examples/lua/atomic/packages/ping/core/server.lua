@@ -1,5 +1,5 @@
 ---@class ExamplePackagePing: Atomic.Package
-local package = atomic.package.current()
+local package = current()
 
 package:onNetworkMessage(function(message)
   local sender = message:getSender()

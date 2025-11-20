@@ -19,7 +19,24 @@ function WebView:init(name, parentDir, autoSpawn)
   self._eventsQueue = {}
   self._funcs = {}
   self._attachedVgui = {}
+  self._isPopup = false
   self._autoSpawn = autoSpawn
+end
+
+---@param isPopup boolean
+function WebView:setPopup(isPopup)
+  self._isPopup = isPopup
+
+  if (not IsValid(self._dhtml)) then
+    return
+  end
+
+  if (isPopup) then
+    self._dhtml:MakePopup()
+  else
+    self._dhtml:SetMouseInputEnabled(false)
+    self._dhtml:SetKeyboardInputEnabled(false)
+  end
 end
 
 ---@return boolean
@@ -57,6 +74,11 @@ end
 ---@param code string
 function WebView:queueJs(code)
   self._dhtml:QueueJavascript(code)
+end
+
+---@return DHTML
+function WebView:getPanel()
+  return self._dhtml
 end
 
 ---@param element Panel
@@ -111,6 +133,10 @@ function WebView:spawn()
   self._dhtml:AddFunction("lua", "call", function(fname, ...)
     return self:callLuaFunction(fname, ...)
   end)
+
+  if (self._isPopup) then
+    self._dhtml:MakePopup()
+  end
 
   for _, panel in pairs(self._attachedVgui) do
     panel:SetParent(self._dhtml)

@@ -35,6 +35,7 @@ end
 ---@field port? integer
 local credentials = util.JSONToTable(file.Read("atomic/mysql/credentials.json"))
 local autoconnect = CreateConVar("atomic_mysql_autoconnect", "1", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL be automatic?")
+local multipleStatements = CreateConVar("atomic_mysql_multistatements", "0", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL have multi statements enabled?")
 
 if (autoconnect:GetBool() and not atomic.mysql._database) then
   atomic.mysql._database = mysqloo.connect(
@@ -57,13 +58,18 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
     logger:debug("error executing query `%s`: %s", sql, err)
   end
 
+  if (multipleStatements:GetBool()) then
+    atomic.mysql._database:setMultiStatements(true)
+  end
+
   atomic.mysql._database:connect()
 end
 
 local prepareTypes = {
   string = "setString",
   boolean = "setBoolean",
-  number = "setNumber"
+  number = "setNumber",
+  Entity = "setNull",
 }
 
 --- Returns a raw database object
@@ -102,6 +108,34 @@ function atomic.mysql.query(query, ...)
   for index, value in ipairs({...}) do
     local method = prepareTypes[type(value)] or prepareTypes.string
     prepared[method](prepared, index, value)
+  end
+
+  prepared:start()
+
+  return coroutine.yield()
+end
+
+--- Executes a query to the database without escaping the arguments
+--- # Warning
+--- All the arguments should be escaped through `SQLStr` or similar functions
+---
+--- ```lua
+--- local data = atomic.mysqlo.query("SELECT * from users WHERE steamid=%s;", SQLStr(Player(1):SteamID()))
+--- ```
+---@async
+---@param query string
+---@vararg ...: string
+---@return table, string?
+function atomic.mysql.queryNotPrepared(query, ...)
+  local co = coroutine.get()
+
+  local prepared = atomic.mysql._database:query(query:format(...))
+  prepared.onSuccess = function(_, data)
+    coroutine.resume(co, data)
+  end
+
+  prepared.onError = function(_, err)
+    coroutine.resume(co, nil, err)
   end
 
   prepared:start()

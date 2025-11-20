@@ -18,9 +18,15 @@ end
 function atomic.i18n.register(languageName, languageTable)
   languageName = languageName:Trim():lower()
 
-  atomic.i18n._storage[languageName] = languageTable
+  if (not atomic.i18n._storage[languageName]) then
+    atomic.i18n._storage[languageName] = languageTable
+    logger:debug("language %s has been registered", languageName)
+  else
+    for k, v in pairs(languageTable) do
+      atomic.i18n._storage[languageName][k] = v
+    end
+  end
 
-  logger:debug("language %s has been registered", languageName)
 end
 
 --- Adds a phrase to an existing language table
@@ -32,6 +38,10 @@ end
 ---@param phraseIndex string
 ---@param phrase string
 function atomic.i18n.addPhrase(language, phraseIndex, phrase)
+  if (not atomic.i18n._storage[language]) then
+    atomic.i18n._storage[language] = {}
+  end
+
   atomic.i18n._storage[language][phraseIndex] = phrase
 end
 
@@ -53,6 +63,10 @@ function atomic.i18n.addPhrases(tab)
 
   -- mixing
   for lang, langTable in pairs(tab) do
+    if (not atomic.i18n._storage[lang]) then
+      atomic.i18n._storage[lang] = {}
+    end
+
     for phraseIndex, phrase in pairs(langTable) do
       storage[lang][phraseIndex] = phrase
     end
@@ -83,12 +97,25 @@ end
 ---
 --- atomic.i18n.getPhrase("ru", "boughtManyDoors", 3) -- also will be "You have bought 3 doors!", because of function has fallback to the default language (english)
 --- atomic.i18n.getPhrase("en", "someNonExistsPhrase") -- will be "someNonExistsPhrase", because of the phrase is not registered
+---
+--- if (CLIENT) then
+---   -- client only!
+---   atomic.i18n.getPhrase(NULL, "boughtManyDoors")
+--- end
+---
+--- if (SERVER) then
+---   atomic.i18n.getPhrase(Player(2), "boughtManyDoors")
+--- end
 --- ```
----@param language string
+---@param language string | Player
 ---@param phraseIndex string
 ---@vararg string | number
 ---@return string
 function atomic.i18n.getPhrase(language, phraseIndex, ...)
+  if (isentity(language)) then
+    language = atomic.i18n.getPlayerLanguage(player)
+  end
+
   local langTable = atomic.i18n._storage[language]
   local phrase = langTable and langTable[phraseIndex]
 
