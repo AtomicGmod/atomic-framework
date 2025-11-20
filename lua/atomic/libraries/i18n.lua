@@ -97,14 +97,23 @@ end
 ---
 --- atomic.i18n.getPhrase("ru", "boughtManyDoors", 3) -- also will be "You have bought 3 doors!", because of function has fallback to the default language (english)
 --- atomic.i18n.getPhrase("en", "someNonExistsPhrase") -- will be "someNonExistsPhrase", because of the phrase is not registered
+---
+--- if (CLIENT) then
+---   -- client only!
+---   atomic.i18n.getPhrase(NULL, "boughtManyDoors")
+--- end
+---
+--- if (SERVER) then
+---   atomic.i18n.getPhrase(Player(2), "boughtManyDoors")
+--- end
 --- ```
----@param language? string
+---@param language string | Player
 ---@param phraseIndex string
 ---@vararg string | number
 ---@return string
 function atomic.i18n.getPhrase(language, phraseIndex, ...)
-  if (CLIENT and not language) then
-    language = GetConVar("gmod_language"):GetString()
+  if (isentity(language)) then
+    language = atomic.i18n.getPlayerLanguage(player)
   end
 
   local langTable = atomic.i18n._storage[language]
