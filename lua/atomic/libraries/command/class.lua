@@ -36,16 +36,7 @@ function Command:onExecute(executable)
 	return self
 end
 
----@param player Player
----@param msg string
-local function sayToPlayer(player, msg)
-	if (IsValid(player)) then
-		player:ChatPrint(language.GetPhrase(msg))
-	else
-		atomic.command.logger:error("Failed to execute command due to: %s", msg)
-	end
-end
-
+-- why it on atomic framework, not in admin system?
 ---@param player Player
 ---@param permission string
 local function hasRightToExecute(player, permission)
@@ -61,25 +52,25 @@ local function hasRightToExecute(player, permission)
 	end
 end
 
----@private
 ---@param executor Player
 ---@param arguments table<string, Atomic.Command.ArgumentKind>
-function Command:doExecute(executor, arguments)
+---@return async fun(): (boolean, string?) | nil
+function Command:execute(executor, arguments)
   if (not self._enabled) then
     return
   end
 
-  coroutine.start(function()
+	return function()
 		local couldExecute = hook.Run("CouldPlayerExecuteCommand", executor, self)
 
 		if (!couldExecute or hasRightToExecute(executor, self._permission)) then
-			return sayToPlayer(executor, "#atomic.no_perms")
+			return false, "no_perms"
 		end
 
 		local err = self._execute(executor, arguments)
 
-		sayToPlayer(executor, err)
-	end)
+		return err == nil, err
+	end
 end
 
 ---@param b boolean
