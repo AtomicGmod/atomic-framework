@@ -1,0 +1,28 @@
+on:
+  push:
+    tags:
+      - 'Release "*.*.*" *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bundle Atomic Framework
+        uses: TeamMeadows/bundler@v0.1.0
+        with:
+          name: atomic
+          type: addon
+
+      - name: Pack bundle into zip
+        run: |
+          mkdir -p artifacts
+          zip -r artifacts/atomic.zip dist/atomic
+
+      - name: Publish to releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/atomic.zip
