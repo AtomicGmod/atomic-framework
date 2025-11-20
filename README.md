@@ -2,6 +2,7 @@
   <img src="assets/logo.png"/>
   <p align="center">Atomic Framework</p>
 
+  <img src="https://img.shields.io/github/actions/workflow/status/TeamMeadows/atomic-framework/build.yml">
   <img src="https://img.shields.io/github/release/TeamMeadows/atomic-framework.svg">
   <img src="https://img.shields.io/github/issues/TeamMeadows/atomic-framework.svg">
   <img src="https://img.shields.io/github/license/TeamMeadows/atomic-framework.svg">
