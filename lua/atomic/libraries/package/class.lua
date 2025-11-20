@@ -35,63 +35,62 @@ function Package:init(metadata)
   self._isEnabled = false
   self.logger = atomic.logger.new(prefix)
 
-  -- nil ~= "library" (if developer not provided kind of the package)
-  if (self._metadata.kind ~= "library") then
-    self:addRegistry()
-  end
+  self:addRegistry()
 end
 
 ---@private
 function Package:addRegistry()
   self._registry = atomic.class.new(PackageRegistry)
   self._data = {
-    events = {},
-    commands = {},
-    binds = {},
-    classes = {},
-    netschemas = {},
-    netlisteners = {},
-    webviews = {}
+    classes = {}
   }
-
-  self._registry:define("events",
-    function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), listener) end,
-    function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
-  )
-
-  self._registry:define("binds",
-    function(_, _, data)
-      local regId = atomic.bind.bind(data.key, data.callback)
-      data.registrationId = regId
-    end,
-    function(self, _, data) atomic.bind.unbind(data.registrationId) end
-  )
 
   self._registry:define("classes",
     function(self, _, class) atomic.class.register(class, self) end,
     function(self, className) atomic.class.unregister(className, self) end
   )
 
-  self._registry:define("commands",
-    function(_, name, command) atomic.command.add(name, command) end,
-    function(_, name) atomic.command.remove(name) end
-  )
+  if (self._metadata.kind ~= "library") then
+    self._data["events"] = {}
+    self._data["commands"] = {}
+    self._data["binds"] = {}
+    self._data["netschemas"] = {}
+    self._data["netlisteners"] = {}
+    self._data["webviews"] = {}
 
-  self._registry:define("netschemas",
-    function(_, _, schema) atomic.network.register(schema) end,
-    function(_, _, schema) atomic.network.unregister(schema._name) end
-  )
+    self._registry:define("events",
+      function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), listener) end,
+      function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
+    )
 
-  self._registry:define("netlisteners",
-    function(_, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
-    function(_, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
-  )
+    self._registry:define("binds",
+      function(_, _, data)
+        local regId = atomic.bind.bind(data.key, data.callback)
+        data.registrationId = regId
+      end,
+      function(_, _, data) atomic.bind.unbind(data.registrationId) end
+    )
 
+    self._registry:define("commands",
+      function(_, name, command) atomic.command.add(name, command) end,
+      function(_, name) atomic.command.remove(name) end
+    )
 
-  self._registry:define("webviews",
-    function(_, _, webview) atomic.webview.register(webview, self) end,
-    function(_, name) atomic.webview.unregister(name, self) end
-  )
+    self._registry:define("netschemas",
+      function(_, _, schema) atomic.network.register(schema) end,
+      function(_, _, schema) atomic.network.unregister(schema._name) end
+    )
+
+    self._registry:define("netlisteners",
+      function(_, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
+      function(_, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
+    )
+
+    self._registry:define("webviews",
+      function(_, _, webview) atomic.webview.register(webview, self) end,
+      function(_, name) atomic.webview.unregister(name, self) end
+    )
+  end
 end
 
 ---@private
@@ -337,7 +336,7 @@ end
 ---@param name Atomic.Package.LocalEvents
 ---@vararg any
 function Package:emitEvent(name, ...)
-  if (not self._data) then
+  if (not self._data.events) then
     return
   end
 
