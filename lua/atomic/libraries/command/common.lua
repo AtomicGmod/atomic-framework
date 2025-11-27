@@ -11,10 +11,11 @@ atomic.loader.server("class.lua")
 local commandClass = atomic.class.get("Command", atomic.class.pseudo)
 
 ---@param name string
----@param permission string
+---@param permission? string
+---@param cooldown? integer Cooldown in seconds, before player can again use this command
 ---@return Atomic.Command
-function atomic.command.new(name, permission)
-  return atomic.class.new(commandClass, name, permission)
+function atomic.command.new(name, permission, cooldown)
+  return atomic.class.new(commandClass, name, permission, cooldown)
 end
 
 ---@param name string
@@ -33,16 +34,3 @@ end
 function atomic.command.remove(name)
 	atomic.command._storage[name] = nil
 end
-
----@diagnostic disable-next-line TODO
----@param command string
----@vararg any
----@return table<string, any>
--- function atomic.command.toArgumentsTable(command, ...)
---   local cmd = atomic.command.get(command)
---   local args = cmd._arguments
-
---   for _, type in ipairs(args) do
-
---   end
--- end
