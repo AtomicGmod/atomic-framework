@@ -112,6 +112,10 @@ function atomic.package.load(metadata)
     return
   end
 
+  if (atomic.package.get(metadata.id, metadata.version)) then
+    return atomic.log:trace("package %s@%s is already loaded", metadata.id, metadata.version)
+  end
+
   local package = atomic.package.new(metadata)
   local id, version = metadata.id, metadata.version
 
@@ -211,7 +215,7 @@ function atomic.package.loadMany(packages)
     keys[#keys+1] = getKey(package)
   end
 
-  atomic.log:trace("package loading order\n\t %s", table.concat(keys, ", "))
+  atomic.log:trace("package loading order: %s", table.concat(keys, ", "))
 
   for _, package in ipairs(loadingSort) do
     atomic.package.load(package)

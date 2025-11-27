@@ -132,22 +132,35 @@ function Package:load()
     return self.logger:warn("no files to include")
   end
 
-  for side, filelist in pairs(files) do
-    local include = atomic.loader[side]
+  if (files.shared) then
+    self:include("shared", files.shared)
+  end
 
-    if (not include) then
-      atomic.log:err("unknown include side `%s`", side)
-      continue
-    end
+  if (SERVER and files.server) then
+    self:include("server", files.server)
+  end
 
-    for _, filename in ipairs(filelist) do
-      include(self._metadata._path .. "/" .. filename)
-    end
+  if (files.client) then
+    self:include("client", files.client)
   end
 
   self:enable()
   self:emitEvent("onEnable")
   self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._metadata.version, instant:elapsed():as_millis())
+end
+
+---@private
+function Package:include(side, files)
+  local include = atomic.loader[side]
+
+  if (not include) then
+    atomic.log:err("unknown include side `%s`", side)
+    return
+  end
+
+  for _, filename in ipairs(files) do
+    include(self._metadata._path .. "/" .. filename)
+  end
 end
 
 ---@private
