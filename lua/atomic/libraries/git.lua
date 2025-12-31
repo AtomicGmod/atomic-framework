@@ -36,7 +36,7 @@ atomic.git._storage = atomic.git._storage or {
 
 ---@param kind "root" | "gamemode" | "addon"
 ---@param name string?
----@return Atomic.Git.Folder
+---@return Atomic.Git.Folder?
 function atomic.git.from(kind, name)
   name = name or ""
 

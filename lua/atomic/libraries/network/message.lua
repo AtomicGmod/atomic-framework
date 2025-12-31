@@ -37,7 +37,7 @@ function NetworkMessage:reply(data)
     error("message `" .. self._id .. "` of scheme `" .. self._scheme .. "` is already replied!")
   end
 
-  atomic.network.send(self._scheme, data, self._sender, self._id)
+  atomic.network.send(self._scheme, data, self._sender, "Send", self._id)
 
   self._isReplied = true
 end

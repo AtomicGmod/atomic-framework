@@ -1,8 +1,8 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    version_name = "Peach",
-    version = "0.6.1",
+    versionName = "Guava",
+    version = "0.7.0",
   }
 }
 
@@ -54,4 +54,4 @@ local packages = package.find("atomic/packages")
 
 package.loadMany(packages)
 
-atomic.log:info("Atomic Framework %s has been loaded for %sms", atomic.meta.version_name, math.floor((SysTime() - start) * 1000 + 0.5))
+atomic.log:info("Atomic Framework %s has been loaded for %sms", atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5))

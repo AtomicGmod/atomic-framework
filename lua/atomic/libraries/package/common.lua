@@ -31,8 +31,6 @@ function atomic.package.new(metadata)
   return package
 end
 
---- FLEX! it makes atomic more flexible
---- for dependency check (e.g dependencies = { atomic = "~0.6.0" })
 atomic.class.pseudo = atomic.package.new(atomic.class.pseudo._metadata)
 
 ---@param id string
@@ -51,53 +49,66 @@ function atomic.package.get(id, version)
   end
 end
 
---- Searches for packages along the specified path
----
---- Supports searching within the ``garrysmod/lua/`` directory, as well as relative to ``garrysmod/gamemodes/``
+--- Reads metadata from `package.lua`, and returns it, making `package.lua` visible on client
 ---
 --- ```lua
---- --- gamemodes/exaample/gamemode/shared.lua
---- --- When searching for packages in gamemode, it is important to specify the second argument = true.
---- local packages = atomic.package.find(GM.FolderName .. "/gamemode/packages", true)
----
---- td(packages) -- table.debug alias, see atomic/utils/table.lua
---- --- admin, base, character, logs
+--- local metadata = atomic.package.readPackageMetadata("atomic/packages/zen/package.lua")
+--- table.debug(metadata)
 --- ```
+---
 ---@param path string
----@param isInGamemode boolean?
----@return Atomic.Package.Metadata[]?
-function atomic.package.find(path, isInGamemode)
-  local gameRelativePath = (isInGamemode and "gamemodes/" or "") .. path
-  local pkg = gameRelativePath .. "/package.lua"
-  local gameDir = isInGamemode and "GAME" or "LUA"
-
-  if file.Exists(pkg, gameDir) then
-    local package = atomic.loader.shared(path .. "/package.lua")
-
-    if (type(package) ~= "table") then
-      return
-    end
-
-    ---@cast package Atomic.Package.Metadata
-
-    package._path = path
-
-    return { package }
+---@return Atomic.Package.Metadata?
+function atomic.package.readPackageMetadata(path)
+  if (not file.Exists(path, "LUA")) then
+    return nil
   end
 
-  local _, packages = file.Find(gameRelativePath .. "/*", gameDir)
+  local metadata = SERVER and atomic.loader.server(path) or atomic.loader.client(path)
+  ---@cast metadata Atomic.Package.Metadata
+
+  if (type(metadata) ~= "table") then
+    return nil
+  end
+
+  metadata._path = path:GetPathFromFilename():sub(1, -2) -- removing last "/" from string
+
+  if (SERVER) then
+    local files = metadata.files
+
+    -- make server-only packages hidden from clients
+    if (type(files) == "table" and type(files.client) == "table" or type(files.shared) == "table") then
+      atomic.loader.csluafile(path)
+    end
+  end
+
+  return metadata
+end
+
+--- Searches for packages along the specified path
+---
+--- ```lua
+--- local packages = atomic.package.find("atomic/packages")
+--- local packages = atomic.package.find(GM.FolderName .. "/gamemode/packages")
+---
+--- table.debug(packages)
+--- ```
+---@param path string
+---@return Atomic.Package.Metadata[]?
+function atomic.package.find(path)
+  local packageMeta = atomic.package.readPackageMetadata(path .. "/package.lua")
+
+  if (packageMeta) then
+    return { packageMeta }
+  end
+
   local result = {}
+  local _, packages = file.Find(path .. "/*", "LUA")
 
-  for _, package in ipairs(packages) do
-    local pkgPath = gameRelativePath .. "/" .. package .. "/package.lua"
-    if file.Exists(pkgPath, gameDir) then
-      local metadata = atomic.loader.shared(path .. "/" .. package .. "/package.lua")
+  for _, dirName in ipairs(packages) do
+    local packageMeta = atomic.package.readPackageMetadata(path .. "/" .. dirName .. "/package.lua")
 
-      if type(metadata) == "table" then
-        ---@cast metadata Atomic.Package.Metadata
-        metadata._path = path .. "/" .. package
-        table.insert(result, metadata)
-      end
+    if (packageMeta) then
+      table.insert(result, packageMeta)
     end
   end
 
@@ -110,6 +121,10 @@ function atomic.package.load(metadata)
   if type(metadata) ~= "table" or not metadata.id or not metadata.version or not metadata._path then
     atomic.log:warn("invalid package to load")
     return
+  end
+
+  if (atomic.package.get(metadata.id, metadata.version)) then
+    return atomic.log:trace("package %s@%s is already loaded", metadata.id, metadata.version)
   end
 
   local package = atomic.package.new(metadata)
@@ -211,7 +226,7 @@ function atomic.package.loadMany(packages)
     keys[#keys+1] = getKey(package)
   end
 
-  atomic.log:trace("package loading order\n\t %s", table.concat(keys, ", "))
+  atomic.log:trace("package loading order: %s", table.concat(keys, ", "))
 
   for _, package in ipairs(loadingSort) do
     atomic.package.load(package)

@@ -10,6 +10,7 @@ atomic.class = atomic.class or {
       id = "atomic",
       version = atomic.meta.version,
       documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
+      icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png"
     }
   }
 }

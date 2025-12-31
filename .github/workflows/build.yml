@@ -23,11 +23,12 @@ jobs:
       - name: Pack bundle into zip
         run: |
           mkdir -p artifacts
-          zip -r artifacts/atomic.zip dist/atomic
+          cd dist
+          zip -r ../artifacts/atomic-framework-release.zip atomic
 
       - name: Publish to releases
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/atomic.zip
+          files: artifacts/atomic-framework-release.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -46,7 +46,9 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
     credentials.port or 3306
   )
 
-  atomic.mysql._database.onConnected = function(_)
+  atomic.mysql._database.onConnected = function(database)
+    hook.Run("onDatabaseConnected", database)
+
     logger:info("successfully connected to the MySQL database")
   end
 

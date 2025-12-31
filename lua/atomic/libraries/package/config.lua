@@ -17,7 +17,7 @@
 --- while waiting for a response from the database? with an infinite loop?
 atomic.package.config = atomic.package.config or {}
 
----@alias ConfigurationContentType "string" | "integer" | "float" | "boolean" | "string[]", "number[]" | "json"
+---@alias ConfigurationContentType "string" | "integer" | "float" | "boolean" | "json" | "color" | "vector" | "angle"
 
 ---@class Atomic.Package.Configuration.Raw
 ---@field default any
@@ -26,9 +26,9 @@ atomic.package.config = atomic.package.config or {}
 
 ---@class Atomic.Package.Configuration: Atomic.Class
 ---@field private _storage table<string, { type: ConfigurationContentType, value: any }>
----@field private _name string?
 ---@field private _memorized table<string, Atomic.Package.Configuration.Raw>
 ---@field private _package { id: string, version: string }
+---@field private _subscribedCallbacks table<string, fun(value: any)>
 local Configuration = atomic.class.create("Configuration")
 atomic.class.register(Configuration, atomic.class.pseudo)
 
@@ -45,38 +45,43 @@ end
 local types = {
   string = {
     is = isstring,
-    to = tostring,
-    from = tostring
+    serialize = tostring,
+    deserialize = tostring
   },
   integer = {
     is = isnumber,
-    to = tonumber,
-    from = function(v) return math.floor(tonumber(v) or 0) end
+    serialize = tonumber,
+    deserialize = function(v) return math.floor(tonumber(v) or 0) end
   },
   float = {
     is = isnumber,
-    to = tonumber,
-    from = tonumber
+    serialize = tonumber,
+    deserialize = tonumber
   },
   boolean = {
     is = isbool,
-    to = tobool,
-    from = tobool
-  },
-  ["string[]"] = {
-    is = istable,
-    to = util.TableToJSON,
-    from = util.JSONToTable
-  },
-  ["number[]"] = {
-    is = istable,
-    to = util.TableToJSON,
-    from = util.JSONToTable
+    serialize = tobool,
+    deserialize = tobool
   },
   json = {
     is = istable,
-    to = util.TableToJSON,
-    from = util.JSONToTable
+    serialize = util.TableToJSON,
+    deserialize = util.JSONToTable
+  },
+  color = {
+    is = IsColor,
+    serialize = string.FromColor,
+    deserialize = string.ToColor
+  },
+  vector = {
+    is = isvector,
+    serialize = tostring,
+    deserialize = Vector
+  },
+  angle = {
+    is = isangle,
+    serialize = tostring,
+    deserialize = Angle
   }
 }
 
@@ -87,25 +92,25 @@ function Configuration:init(configuration, packageId, packageVer)
   self._memorized = configuration
   self._package = { id = packageId, version = packageVer }
   self._storage = {}
+  self._subscribedCallbacks = {}
 
   local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=? AND package_version = ?", packageId, packageVer)
   ---@cast data { name: string, value: string }[]
 
-  -- todo remove spaghetti code
-  if istable(data) then
+  if (istable(data)) then
     for _, row in ipairs(data) do
       local raw = configuration[row.name]
-      if raw then
-        local handler = types[raw.type]
-        if handler then
-          self._storage[row.name] = {
-            type = raw.type,
-            value = handler.from(row.value)
-          }
-        else
-          atomic.log:err("unknown config type '%s' for key '%s'", tostring(raw.type), row.name)
-        end
+
+      local handler = types[raw.type]
+
+      if (not handler) then
+        return atomic.log:err("unknown config type '%s' for key '%s'", tostring(raw.type), row.name)
       end
+
+      self._storage[row.name] = {
+        type = raw.type,
+        value = handler.deserialize(row.value)
+      }
     end
   end
 
@@ -115,9 +120,9 @@ function Configuration:init(configuration, packageId, packageVer)
   -- obtained using the get method or set using the set method.
   sql.Begin()
   for name, raw in pairs(configuration) do
-    if not self._storage[name] then
+    if (not self._storage[name]) then
       local handler = types[raw.type]
-      local defaultValue = handler and handler.to(raw.default) or tostring(raw.default)
+      local defaultValue = handler and handler.serialize(raw.default) or tostring(raw.default)
       sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, package_version, name, value) VALUES(?, ?, ?, ?)", packageId, packageVer, name, defaultValue)
       self._storage[name] = { type = raw.type, value = raw.default }
     end
@@ -125,6 +130,13 @@ function Configuration:init(configuration, packageId, packageVer)
   sql.Commit()
 end
 
+--- Returns current value of a field
+---
+--- ```lua
+--- local value = package:getConfiguration():get("somePackageConfigurationField")
+--- print(value) -- "This is value from databases"
+--- ```
+---
 ---@param key string
 ---@generic T
 ---@return T?
@@ -133,24 +145,51 @@ function Configuration:get(key)
   return entry and entry.value or nil
 end
 
+--- 
+---
+--- ```lua
+--- local value
+--- package:getConfiguration():subscribe(function(fromDatabase)
+---   value = fromDatabase
+--- end, "somePackageConfigurationField")
+---
+--- print(value) -- "This is value from databases"
+--- ```
+---
+---@param callback fun(value: any)
+---@param key string
+function Configuration:subscribe(callback, key)
+  local value = self:get(key)
+
+  if (value) then
+    callback(value)
+  end
+
+  self._subscribedCallbacks[key] = callback
+end
+
 ---@param key string
 ---@param value any
 function Configuration:set(key, value)
   local entry = self._storage[key]
-  if not entry then
-    atomic.log:debug("attempt to set unknown key `%s` to config\n\tcalled from %s", key, debug.getcaller())
-    return
+  if (not entry) then
+    return atomic.log:err("attempt to set unknown key `%s` to config\n\tcalled from %s", key, debug.getcaller())
   end
 
   local handler = types[entry.type]
-  if not handler then
-    atomic.log:err("unknown type '%s' on config:set(%s)\n\tcalled from %s", entry.type, key, debug.getcaller())
-    return
+  if (not handler) then
+    return atomic.log:err("unknown type '%s' on config:set(%s)\n\tcalled from %s", entry.type, key, debug.getcaller())
   end
 
-  local data = handler.to(value)
+  local data = handler.serialize(value)
 
   sql.QueryTyped("UPDATE atomic_config SET value=? WHERE name=? AND package_id=? AND package_version=?", data, key, self._package.id, self._package.version)
 
   entry.value = value
+
+  local subscribedCallback = self._subscribedCallbacks
+
+  if (subscribedCallback) then
+    subscribedCallback(value)
+  end
 end
