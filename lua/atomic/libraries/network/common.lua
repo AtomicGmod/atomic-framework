@@ -74,10 +74,11 @@ end
 
 ---@param schemaName string
 ---@param data table<string, any>
----@param player? Player
+---@param player? Player | table | Vector
 ---@param id? string Overrides message id
+---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast" Serverside only
 ---@return string Id of the message
-function atomic.network.send(schemaName, data, player, id)
+function atomic.network.send(schemaName, data, player, sendFunction, id)
   id = id or generateMessageId()
 
   local schema = schemas[schemaName]
@@ -92,9 +93,8 @@ function atomic.network.send(schemaName, data, player, id)
 
   schema:writePackage(data)
 
-  if (SERVER and IsValid(player)) then
-    ---@cast player Player
-    net.Send(player)
+  if (SERVER and player) then
+    net[sendFunction or "Send"](player)
   elseif (CLIENT) then
     net.SendToServer()
   end
@@ -139,7 +139,7 @@ function atomic.network.receiver(len, player)
   local message = schema and schema:readPackage(player, messageId)
 
   if (not schema or not message) then
-    logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.\n\tcheck the packet in Atomic Bandwidth!", player:SteamID64(), len)
+    logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
     return
   end
 
