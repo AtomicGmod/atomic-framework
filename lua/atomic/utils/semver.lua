@@ -2,6 +2,10 @@
 ---@param constraint string
 ---@return boolean
 function util.IsVersionSuitable(current, constraint)
+  if (constraint == "*") then
+    return true
+  end
+
   local function splitver(v)
     local t = {}
     for num in string.gmatch(v, "%d+") do

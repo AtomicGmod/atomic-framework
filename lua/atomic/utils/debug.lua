@@ -7,5 +7,5 @@ function debug.getcaller(overhead)
   -- 3 - caller of 2
   local caller = debug.getinfo(3 + (overhead or 0))
 
-  return (caller.short_src or "n/a") .. (caller.currentline or "-1")
+  return (caller.short_src or "n/a") .. ":" .. (caller.currentline or "-1")
 end

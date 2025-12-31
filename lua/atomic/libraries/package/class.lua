@@ -390,7 +390,7 @@ end
 ---
 --- package:listen(function(player)
 ---   print(player:Nick() .. " has been died!")
---- end, "PlayerDeath", "logPlayerDie")
+--- end, "PlayerDeath")
 --- ```
 ---@param callback fun(...: any): ...: any
 ---@param eventName string | Atomic.Package.Events Name of the event
