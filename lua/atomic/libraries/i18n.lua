@@ -63,14 +63,26 @@ function atomic.i18n.addPhrases(tab)
 
   -- mixing
   for lang, langTable in pairs(tab) do
-    if (not atomic.i18n._storage[lang]) then
-      atomic.i18n._storage[lang] = {}
+    if (not storage[lang]) then
+      storage[lang] = {}
     end
 
     for phraseIndex, phrase in pairs(langTable) do
       storage[lang][phraseIndex] = phrase
     end
   end
+end
+
+---@param language string
+---@param phraseIndex string
+function atomic.i18n.removePhrase(language, phraseIndex)
+  local storage = atomic.i18n._storage
+
+  if (not storage[language]) then
+    return
+  end
+
+  storage[language][phraseIndex] = nil
 end
 
 --- Returns the player's current language, for example “en”
