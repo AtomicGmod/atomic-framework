@@ -9,9 +9,11 @@
 ---@field dependencies? table<"atomic" | string, string>
 ---@field kind? "system" | "library"
 ---@field icon? string Url to the icon of a package
+---@field language? table<string, table<string, string>>
 ---@field private _path string? `Internal` field
 
 ---@class Atomic.Package: Atomic.Class
+---@field private _state? table<string, any>
 ---@field private _metadata Atomic.Package.Metadata
 ---@field private _registry? Atomic.Package.Registry
 ---@field private _data? table<string, table>
@@ -51,13 +53,13 @@ function Package:addRegistry()
   )
 
   if (self._metadata.kind ~= "library") then
+    self._state = {}
     self._data["events"] = {}
     self._data["commands"] = {}
     self._data["binds"] = {}
     self._data["netschemas"] = {}
     self._data["netlisteners"] = {}
     self._data["webviews"] = {}
-
     self._registry:define("events",
       function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), listener) end,
       function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
@@ -100,7 +102,7 @@ end
 function Package:register(category, index, value)
   self._data[category][index] = value
 
-  if self._isEnabled then
+  if (self._isEnabled) then
     self._registry:add(category, self, index, value)
   end
 end
@@ -115,7 +117,7 @@ function Package:unregister(category, index)
     return
   end
 
-  if self._isEnabled then
+  if (self._isEnabled) then
     self._registry:remove(category, self, index, value)
   end
 
@@ -124,33 +126,27 @@ end
 
 ---@private
 function Package:load()
-  local instant = atomic.time.newInstant()
-
+  local instant = Instant()
   local files = self._metadata.files
 
   if (not files) then
     return self.logger:warn("no files to include")
   end
 
-  if (files.shared) then
-    self:include("shared", files.shared)
-  end
-
-  if (SERVER and files.server) then
-    self:include("server", files.server)
-  end
-
-  if (files.client) then
-    self:include("client", files.client)
-  end
+  self:include("shared", files.shared)
+  self:include("server", files.server)
+  self:include("client", files.client)
 
   self:enable()
-  self:emitEvent("onEnable")
   self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._metadata.version, instant:elapsed():as_millis())
 end
 
 ---@private
 function Package:include(side, files)
+  if (not files) then
+    return
+  end
+
   local include = atomic.loader[side]
 
   if (not include) then
@@ -165,15 +161,28 @@ end
 
 ---@private
 function Package:unload()
-  self:emitEvent("onDisable")
   self:disable()
   self.logger:trace("package `%s@%s` unloaded successfully", self._metadata.id, self._metadata.version)
 end
 
 --- Enable/Disable
 
+local addPhrase = atomic.i18n.addPhrase
+
 ---@private
 function Package:enable()
+  self:emitEvent("onEnable")
+
+  local localization = self._metadata.language
+
+  if (localization) then
+    for language, tab in pairs(localization) do
+      for phraseId, phrase in pairs(tab) do
+        addPhrase(language, self:formatUniversalId(phraseId), phrase)
+      end
+    end
+  end
+
   if (self._data) then
     for category, entries in pairs(self._data) do
       for index, entry in pairs(entries) do
@@ -185,14 +194,33 @@ function Package:enable()
   self._isEnabled = true
 end
 
+local removePhrase = atomic.i18n.removePhrase
+
 ---@private
 function Package:disable()
+  self:emitEvent("onDisable")
+
   if (self._data) then
     for category, entries in pairs(self._data) do
       for index, entry in pairs(entries) do
         self._registry:remove(category, self, index, entry)
       end
     end
+  end
+
+  local localization = self._metadata.language
+
+  if (localization) then
+    for language, tab in pairs(localization) do
+      for phraseId in pairs(tab) do
+        removePhrase(language, self:formatUniversalId(phraseId))
+      end
+    end
+  end
+
+  -- clearing state
+  if (self._state) then
+    self._state = {}
   end
 
   self._isEnabled = true
@@ -271,12 +299,41 @@ function Package:getDependency(id)
   return atomic.package.get(id, version)
 end
 
+--- State
+
+---@param key string
+---@param value string
+---@return any? @Old value
+function Package:setState(key, value)
+  local old = self._state[key]
+  self._state[key] = value
+  return old
+end
+
+---@param key string
+---@return any?
+function Package:getState(key)
+  return self._state[key]
+end
+
+--- Language
+
+local getPhrase = atomic.i18n.getPhrase
+
+---@param player Player
+---@param phraseId string
+---@param ...any?
+---@return string
+function Package:getPhrase(player, phraseId, ...)
+  return getPhrase(player, self:formatUniversalId(phraseId), ...)
+end
+
 --- Binds
 
----@param key number
 ---@param callback fun(player: Player)
+---@param key number
 ---@return integer registrationId
-function Package:bind(key, callback)
+function Package:bind(callback, key)
   local id = #self._data.binds+1
 
   self:register("binds", id, {
@@ -288,6 +345,11 @@ function Package:bind(key, callback)
   return id
 end
 
+---@param registrationId integer
+function Package:unbind(registrationId)
+  self:unregister("binds", registrationId)
+end
+
 --- Commands
 
 --- Registers the command
@@ -295,22 +357,26 @@ end
 --- ```lua
 --- local package = atomic.package.current()
 ---
---- package:command(
----   atomic.command.new("example", "atomic.example")
----     :argument("user", "player")
----     :onExecute(function(executor, user)
----       print(executor:Nick() .. " executes command `example` and mentioned player " .. user:Nick() .. " !")
----     end)
---- )
+--- package:command("example", "atomic.example")
+---   :argument("user", "player")
+---   :onExecute(function(executor, user)
+---     print(executor:Nick() .. " executes command `example` and mentioned player " .. user:Nick() .. " !")
+---   end)
 --- ```
----@param command Atomic.Command
-function Package:command(command)
-  self:register("commands", command._name, command)
+---@param commandName string
+---@param permission? string
+---@param cooldown? number
+---@return Atomic.Command
+function Package:command(commandName, permission, cooldown)
+  local command = atomic.command.new(commandName, permission, cooldown)
+  self:register("commands", commandName, command)
+
+  return command
 end
 
 --- Events
 
----@alias Atomic.Package.LocalEvents "onEnable" | "onDisable"
+---@alias Atomic.Package.Events "onEnable" | "onDisable" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
 
 ---@private
 function Package:formatUniversalId(eventName)
@@ -320,22 +386,22 @@ end
 --- Adds an event for listening
 ---
 --- ```lua
---- local package = atomic.package.current()
+--- local package = current()
 ---
 --- package:listen(function(player)
 ---   print(player:Nick() .. " has been died!")
---- end, "PlayerDeath")
+--- end, "PlayerDeath", "logPlayerDie")
 --- ```
----@param eventName string | Atomic.Package.LocalEvents Name of the event
 ---@param callback fun(...: any): ...: any
-function Package:listen(eventName, callback)
+---@param eventName string | Atomic.Package.Events Name of the event
+function Package:listen(callback, eventName)
   self:register("events", eventName, callback)
 end
 
 --- Removes the event from listening
 ---
 --- ```lua
---- local package = atomic.package.current()
+--- local package = current()
 ---
 --- package:unlisten("PlayerDeath")
 --- ```
@@ -346,7 +412,7 @@ end
 
 --- Starts a local event that is only associated with the current package.
 ---@private
----@param name Atomic.Package.LocalEvents
+---@param name Atomic.Package.Events
 ---@vararg any
 function Package:emitEvent(name, ...)
   if (not self._data.events) then
@@ -401,27 +467,26 @@ end
 
 ---@param name string
 ---@param data table<string, any>
----@param player Player?
+---@param player? Player | table | Vector
+---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
 ---@return string Message id
-function Package:sendNetworkMessage(name, data, player)
+function Package:sendNetworkMessage(name, data, player, sendFunction)
   local schema = self._data.netschemas[name]
 
-  return atomic.network.send(schema._name, data, player)
+  return atomic.network.send(schema._name, data, player, sendFunction)
 end
 
 ---@param name string
 ---@param data table<string, any>
 function Package:broadcastNetworkMessage(name, data)
-  local schema = self._data.netschemas[name]
-
-  atomic.network.send(schema._name, data, player.GetHumans())
+  self:sendNetworkMessage(name, data, player.GetHumans(), "Broadcast")
 end
 
 ---@async
 ---@param name string
 ---@param data table<string, any>
 ---@param player Player?
----@return table | string
+---@return Atomic.Network.Message | string
 function Package:sendNetworkMessageAsync(name, data, player)
   local schema = self._data.netschemas[name]
 
