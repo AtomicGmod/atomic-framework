@@ -27,6 +27,7 @@
     "diagnostics.globals": [
         "atomic",
         "git",
-        "mysqloo"
+        "mysqloo",
+        "todo",
     ]
 }
