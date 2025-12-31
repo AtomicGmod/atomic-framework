@@ -7,7 +7,7 @@ local package = current()
 function package:ping()
   local instant = Instant()
 
-  coroutine.start(function()
+  async(function()
     local message = self:sendNetworkMessageAsync("Ping", {})
 
     local ms = instant:elapsed():as_millis()
@@ -19,9 +19,9 @@ end
 
 --- Removing console command
 --- when package will disabled
-package:listen("onDisable", function()
+package:listen(function()
   concommand.Remove("do_ping")
-end)
+end, "onDisable")
 
 concommand.Add("do_ping", function()
 	package:ping()
