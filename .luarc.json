@@ -24,10 +24,10 @@
     "invisible"
   ],
   "Lua.workspace.checkThirdParty": false,
-    "diagnostics.globals": [
-        "atomic",
-        "git",
-        "mysqloo",
-        "todo",
-    ]
+  "diagnostics.globals": [
+      "atomic",
+      "git",
+      "mysqloo",
+      "todo"
+  ]
 }
