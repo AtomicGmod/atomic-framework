@@ -13,6 +13,21 @@
 Atomic is a flexible, OOP-driven framework for building Garry’s Mod addons and gamemodes with a clean, modular architecture.
 Each **package** is a self-contained unit - just like an addon - with built-in dependency management and powerful libraries for writing structured, maintainable Lua code.
 
+```lua
+local package = current()
+
+local libui = package:getDependency("com.developername.libui")
+
+package:listen(function(self)
+  libui:drawText(self:getPhrase("en", "hello_world"), uilib.textSize.small, ScrW() / 2, ScrH()/2, color_white, TEXT_ALIGN_CENTER)
+end, "HUDPaint")
+
+package:listen(function(self)
+  self.logger:info("package successfully enabled")
+end, "onEnable")
+```
+###### Real example of addon based on Atomic
+
 ---
 
 ## Installation
@@ -20,8 +35,8 @@ Simply place the framework in your `addons/` folder.
 Atomic will automatically load available packages.
 
 Optional dependencies:
-- For `MySQL` support → install [MySQLOO](https://github.com/FredyH/MySQLOO)
-- For `git` support → install [gm_git](https://github.com/TeamMeadows/gm_git)
+- `MySQL` support / [MySQLOO](https://github.com/FredyH/MySQLOO)
+- `git` support / [gm_git](https://github.com/TeamMeadows/gm_git)
 
 ---
 
