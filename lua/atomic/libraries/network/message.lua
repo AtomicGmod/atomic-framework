@@ -26,6 +26,11 @@ function NetworkMessage:getSender()
   return self._sender
 end
 
+---@return string
+function NetworkMessage:getId()
+  return self._id
+end
+
 ---@return boolean
 function NetworkMessage:isReplied()
   return self._isReplied
