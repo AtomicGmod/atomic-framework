@@ -48,41 +48,49 @@ function Duration:as_nanos()
   return self._secs * 1e9 + math.floor(self._nanos)
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return Atomic.Time.Duration
 function Duration:__add(other)
   return new(Duration, 0, self:as_nanos() + (istable(other) and other:as_nanos() or other))
 end
+
+---@private
 ---@param other Atomic.Time.Duration
 ---@return Atomic.Time.Duration
 function Duration:__sub(other)
   return new(Duration, 0, self:as_nanos() - (istable(other) and other:as_nanos() or other))
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return Atomic.Time.Duration
 function Duration:__mul(other)
   return new(Duration, 0, self:as_nanos() * (istable(other) and other:as_nanos() or other))
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return Atomic.Time.Duration
 function Duration:__div(other)
   return new(Duration, 0, self:as_nanos() / (istable(other) and other:as_nanos() or other))
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return boolean
 function Duration:__lt(other)
   return self:as_nanos() < (istable(other) and other:as_nanos() or other)
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return boolean
 function Duration:__le(other)
   return self:as_nanos() <= (istable(other) and other:as_nanos() or other)
 end
 
+---@private
 ---@param other Atomic.Time.Duration
 ---@return boolean
 function Duration:__eq(other)

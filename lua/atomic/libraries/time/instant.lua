@@ -37,12 +37,14 @@ function Instant:elapsed()
   return new(Instant):duration_since(self)
 end
 
+---@private
 ---@param dur Atomic.Time.Duration
 ---@return Atomic.Time.Instant
 function Instant:__add(dur)
   return new(Instant, self._time + dur:as_secs() + dur:as_nanos() / 1e9)
 end
 
+---@private
 ---@param other Atomic.Time.Instant
 ---@return Atomic.Time.Duration
 function Instant:__sub(other)
