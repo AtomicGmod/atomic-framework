@@ -56,6 +56,10 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
     logger:err("error while connecting to database: %s", err)
   end
 
+  atomic.mysql._database.onDisconnected = function()
+    logger:info("connection to the MySQL database has been interrupted")
+  end
+
   atomic.mysql._database.onError = function(_, err, sql)
     logger:debug("error executing query `%s`: %s", sql, err)
   end
