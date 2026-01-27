@@ -15,11 +15,10 @@ Each **package** is a self-contained unit - just like an addon - with built-in d
 
 ```lua
 local package = current()
-
 local libui = package:getDependency("com.developername.libui")
 
 package:listen(function(self)
-  libui:drawText(self:getPhrase("en", "hello_world"), uilib.textSize.small, ScrW() / 2, ScrH()/2, color_white, TEXT_ALIGN_CENTER)
+  libui:drawText(self:getPhrase("en", "hello_world"), libui.textSize.small, ScrW() / 2, ScrH()/2, color_white, TEXT_ALIGN_CENTER)
 end, "HUDPaint")
 
 package:listen(function(self)
