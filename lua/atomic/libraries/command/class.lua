@@ -1,5 +1,6 @@
 ---@alias Atomic.Command.ArgumentKind "number" | "string" | "boolean" | "time" | "player"
----@alias Atomic.Command.ExecuteFunc fun(executor: Player, arguments: table<string, Atomic.Command.ArgumentKind>): string?
+---@alias Atomic.Command.ArgumentTypes number | string | boolean | Player
+---@alias Atomic.Command.ExecuteFunc fun(executor: Player, arguments: table<string, Atomic.Command.ArgumentTypes>): string?
 ---@alias Atomic.Command.Argument { name: string, kind: Atomic.Command.ArgumentKind, isOptional: boolean }
 
 ---@class Atomic.Command: Atomic.Class
@@ -124,4 +125,9 @@ function Command:setEnabled(b)
 	self._enabled = b
 
 	return self
+end
+
+---@return boolean
+function Command:isEnabled()
+  return self._enabled
 end
