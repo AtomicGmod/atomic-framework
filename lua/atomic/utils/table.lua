@@ -43,7 +43,7 @@ function table.debug(tab, indent, done)
   end
 
   if (i == 0) then
-    MsgC(indentStr, blue, "empty table")
+    MsgC(indentStr, blue, "<empty table>")
     MsgN()
   end
 end

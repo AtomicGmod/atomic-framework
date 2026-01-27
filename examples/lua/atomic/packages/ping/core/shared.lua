@@ -6,4 +6,4 @@ local package = current()
 package:networkSchema("Ping")
   -- server will send to client
   -- field "content" with type of string
-  :clientField("content", "string")
+  :client("content", "string")

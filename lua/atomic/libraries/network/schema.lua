@@ -2,13 +2,15 @@
 local NetworkMessage = atomic.class.get("NetworkMessage")
 
 ---@class Atomic.Network.Schema: Atomic.Class
+---@field private _package Atomic.Package
 ---@field private _name string
 ---@field private _arguments table<"client" | "server", { fieldName: string, type: Atomic.Network.Schema.Types }[]>
 local NetworkSchema = atomic.class.create("NetworkSchema")
 atomic.class.register(NetworkSchema, atomic.class.pseudo)
 
 ---@param name string
-function NetworkSchema:init(name)
+function NetworkSchema:init(package, name)
+  self._package = package
   self._name = name
   self._arguments = {
     client = {},
@@ -19,7 +21,7 @@ end
 --- Adds an argument to the schema that will be in the payload on the **client**.
 ---@param name string
 ---@param type Atomic.Network.Schema.Types
-function NetworkSchema:clientField(name, type)
+function NetworkSchema:client(name, type)
   self._arguments.client[#self._arguments.client+1] = { fieldName = name, type = type }
 
   return self
@@ -28,7 +30,7 @@ end
 --- Adds an argument to the schema that will be in the payload on the **server**.
 ---@param name string
 ---@param type Atomic.Network.Schema.Types
-function NetworkSchema:serverField(name, type)
+function NetworkSchema:server(name, type)
   self._arguments.server[#self._arguments.server+1] = { fieldName = name, type = type }
 
   return self
@@ -37,7 +39,7 @@ end
 ---@param sender Player
 ---@param messageId string
 ---@return Atomic.Network.Message
-function NetworkSchema:readPackage(sender, messageId)
+function NetworkSchema:readNetPacket(sender, messageId)
   local msg = {}
   local side = SERVER and "server" or "client"
 
@@ -51,7 +53,7 @@ function NetworkSchema:readPackage(sender, messageId)
 end
 
 ---@param data table<string, any>
-function NetworkSchema:writePackage(data)
+function NetworkSchema:writeNetPacket(data)
   local side = SERVER and "client" or "server"
 
   for _, field in ipairs(self._arguments[side]) do
@@ -59,4 +61,9 @@ function NetworkSchema:writePackage(data)
 
     write(data[field.fieldName])
   end
+end
+
+---@return Atomic.Package
+function NetworkSchema:getParentPackage()
+  return self._package
 end

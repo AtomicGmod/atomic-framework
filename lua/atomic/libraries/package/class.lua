@@ -6,7 +6,7 @@
 ---@field documentation? string
 ---@field configuration? table<string, Atomic.Package.Configuration.Raw>
 ---@field files table<"client" | "shared" | "server", string[]>
----@field dependencies? table<"atomic" | string, string>
+---@field dependencies? table<"client" | "shared" | "server", table<"atomic" | string, string>>
 ---@field kind? "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
@@ -30,14 +30,16 @@ local PackageRegistry = atomic.class.get("PackageRegistry")
 
 ---@param metadata Atomic.Package.Metadata
 function Package:init(metadata)
-  local prefix = (metadata.id:Split(".")[3] or metadata.id):lower()
+  local splittedId = metadata.id:Split(".")
+  local prefix = (splittedId[#splittedId] or metadata.id):lower()
 
+  self._isEnabled = false
   self._metadata = metadata
   self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, metadata.version)
-  self._isEnabled = false
   self.logger = atomic.logger.new(prefix)
 
   self:addRegistry()
+  self:addLanguageFromMetadata()
 end
 
 ---@private
@@ -61,7 +63,7 @@ function Package:addRegistry()
     self._data["netlisteners"] = {}
     self._data["webviews"] = {}
     self._registry:define("events",
-      function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), listener) end,
+      function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), function(...) return listener(self, ...) end) end,
       function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
     )
 
@@ -95,6 +97,21 @@ function Package:addRegistry()
   end
 end
 
+local addPhrase = atomic.i18n.addPhrase
+
+---@private
+function Package:addLanguageFromMetadata()
+  local localization = self._metadata.language
+
+  if (localization) then
+    for language, tab in pairs(localization) do
+      for phraseId, phrase in pairs(tab) do
+        addPhrase(language, self:formatUniversalId(phraseId), phrase)
+      end
+    end
+  end
+end
+
 ---@private
 ---@param category "events" | "binds" | "classes"| "commands" | "netschemas" | "netlisteners" | "webviews"
 ---@param index string | integer
@@ -113,7 +130,7 @@ end
 function Package:unregister(category, index)
   local value = self._data[category][index]
 
-  if not value then
+  if (not value) then
     return
   end
 
@@ -167,21 +184,9 @@ end
 
 --- Enable/Disable
 
-local addPhrase = atomic.i18n.addPhrase
-
 ---@private
 function Package:enable()
   self:emitEvent("onEnable")
-
-  local localization = self._metadata.language
-
-  if (localization) then
-    for language, tab in pairs(localization) do
-      for phraseId, phrase in pairs(tab) do
-        addPhrase(language, self:formatUniversalId(phraseId), phrase)
-      end
-    end
-  end
 
   if (self._data) then
     for category, entries in pairs(self._data) do
@@ -290,10 +295,23 @@ end
 ---@param id string
 ---@return Atomic.Package?
 function Package:getDependency(id)
-  local version = (self._metadata.dependencies or {})[id]
+  local dependecies = self._metadata.dependencies
+
+  if (not dependecies) then
+    return
+  end
+
+  local stateDeps = dependecies[SERVER and "server" or "client"]
+
+  local version = stateDeps and stateDeps[id]
 
   if (not version) then
-    return
+    local sharedDeps = dependecies.shared
+    version = sharedDeps and sharedDeps[id]
+
+    if (not version) then
+      return self.logger:err("dependency `%s` is not specified in package.lua!", id)
+    end
   end
 
   return atomic.package.get(id, version)
@@ -302,11 +320,19 @@ end
 --- State
 
 ---@param key string
----@param value string
+---@param value any
 ---@return any? @Old value
 function Package:setState(key, value)
   local old = self._state[key]
   self._state[key] = value
+  return old
+end
+
+---@param key string
+---@return any? @Old value
+function Package:clearState(key)
+  local old = self._state[key]
+  self._state[key] = nil
   return old
 end
 
@@ -320,7 +346,7 @@ end
 
 local getPhrase = atomic.i18n.getPhrase
 
----@param player Player
+---@param player Player | string
 ---@param phraseId string
 ---@param ...any?
 ---@return string
@@ -392,9 +418,14 @@ end
 ---   print(player:Nick() .. " has been died!")
 --- end, "PlayerDeath")
 --- ```
----@param callback fun(...: any): ...: any
+---@generic T: Atomic.Package
+---@param self T
+---@param callback fun(self: T, ...: any): ...: any
 ---@param eventName string | Atomic.Package.Events Name of the event
 function Package:listen(callback, eventName)
+  --- todo remove diagnostic disable
+  --- ebuchi lualsp >:(
+  ---@diagnostic disable-next-line undefined-field
   self:register("events", eventName, callback)
 end
 
@@ -425,17 +456,18 @@ function Package:emitEvent(name, ...)
     return
   end
 
-  listener(...)
+  listener(self, ...)
 end
 
 --- Classes
 
 --- Creates new class and automatically registeres it
 ---@param name string
+---@param parent? Atomic.Class
 ---@generic T
 ---@return T: Atomic.Class
-function Package:class(name)
-  local class = atomic.class.create(name)
+function Package:class(name, parent)
+  local class = atomic.class.create(name, parent)
 
   self:register("classes", class._name, class)
 
@@ -453,15 +485,21 @@ end
 ---@param schemaName string
 ---@return Atomic.Network.Schema
 function Package:networkSchema(schemaName)
-  local schema = atomic.network.new(self:formatUniversalId(schemaName))
+  local schema = atomic.network.new(self, self:formatUniversalId(schemaName))
+
   self:register("netschemas", schemaName, schema)
 
   return schema
 end
 
----@param callback fun(message: Atomic.Network.Message)
+---@generic T: Atomic.Package
+---@param self T
+---@param callback fun(self: T, message: Atomic.Network.Message)
 ---@param schemaName string
 function Package:onNetworkMessage(callback, schemaName)
+  --- todo remove diagnostic disable
+  --- ebuchi lualsp >:(
+  ---@diagnostic disable-next-line undefined-field
   self:register("netlisteners", schemaName, callback)
 end
 

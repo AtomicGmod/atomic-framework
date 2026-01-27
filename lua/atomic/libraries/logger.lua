@@ -31,15 +31,14 @@ local function getcurrenttime()
   return os.date("%H:%M:%S")
 end
 
-local iswin = jit.os == "Windows"
-
 -- colors
-local white = iswin and Color(255, 255, 255) or "\27[37m"
-local trace = iswin and Color(128, 128, 128) or "\27[90m"
-local debug = iswin and Color(0, 255, 255) or "\27[36m"
-local info = iswin and Color(0, 255, 0) or "\27[32m"
-local warn = iswin and Color(255, 255, 0) or "\27[33m"
-local err = iswin and Color(255, 0, 0) or "\27[31m"
+-- *client game console doesn't support the ANSI escape codes
+local white = CLIENT and Color(255, 255, 255) or "\27[37m"
+local trace = CLIENT and Color(128, 128, 128) or "\27[90m"
+local debug = CLIENT and Color(0, 255, 255) or "\27[36m"
+local info = CLIENT and Color(0, 255, 0) or "\27[32m"
+local warn = CLIENT and Color(255, 255, 0) or "\27[33m"
+local err = CLIENT and Color(255, 0, 0) or "\27[31m"
 
 local levels = {
   TRACE = 1,
@@ -49,12 +48,15 @@ local levels = {
   ERR = 5,
 }
 
-local logvar = CreateConVar("atomic_log", "INFO", {FCVAR_ARCHIVE, FCVAR_PROTECTED}, "Minimum log level (INFO, DEBUG, WARN, ERR)")
+local logvar = CreateConVar("atomic_log", "INFO", {FCVAR_ARCHIVE, FCVAR_PROTECTED}, "Minimum log level (TRACE/INFO/DEBUG/WARN/ERR)")
 
 ---@param prefix string
 function Logger:init(prefix)
   self.prefix = prefix
 end
+
+-- not a magic number
+local MAX_LEVEL_LENGTH = 5
 
 ---@protected
 ---@param color Color | string
@@ -66,9 +68,11 @@ function Logger:log(color, level, message, ...)
   local currentIdx = levels[currentLevel] or 1
   local msgIdx = levels[level] or 1
 
-  if msgIdx < currentIdx then return end
+  if (msgIdx < currentIdx) then
+    return
+  end
 
-  MsgC(white, "[", getcurrenttime(), " ", color, level, " ", white, self.prefix, "]", " ", string.format(message, ...))
+  MsgC(white, "[", getcurrenttime(), " ", color, level .. (" "):rep(MAX_LEVEL_LENGTH - #level), " ", white, self.prefix, "]", " ", string.format(message, ...))
   MsgN()
 end
 

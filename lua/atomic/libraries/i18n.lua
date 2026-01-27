@@ -125,7 +125,8 @@ end
 ---@return string
 function atomic.i18n.getPhrase(language, phraseIndex, ...)
   if (isentity(language)) then
-    language = atomic.i18n.getPlayerLanguage(player)
+    ---@diagnostic disable-next-line
+    language = atomic.i18n.getPlayerLanguage(language)
   end
 
   local langTable = atomic.i18n._storage[language]

@@ -119,7 +119,7 @@ end
 ---@param metadata Atomic.Package.Metadata
 function atomic.package.load(metadata)
   if type(metadata) ~= "table" or not metadata.id or not metadata.version or not metadata._path then
-    atomic.log:warn("invalid package to load")
+    atomic.log:warn("package %s@%s have is invalid!", metadata.id or metadata._path or "N/A (see TRACE logs)", metadata.version or "N/A")
     return
   end
 
@@ -127,7 +127,12 @@ function atomic.package.load(metadata)
     return atomic.log:trace("package %s@%s is already loaded", metadata.id, metadata.version)
   end
 
-  local package = atomic.package.new(metadata)
+  local isOk, package = pcall(atomic.package.new, metadata)
+
+  if (not isOk) then
+    return atomic.log:err("package %s@%s failed to load: %s", metadata.id, metadata.version, package)
+  end
+
   local id, version = metadata.id, metadata.version
 
   atomic.package._pathMap[metadata._path] = { id, version }
@@ -135,11 +140,15 @@ function atomic.package.load(metadata)
   -- dependencies check
   local deps = metadata.dependencies
   if (deps) then
-    for depId, depVersion in pairs(deps) do
-      local dep = atomic.package.get(depId, depVersion)
+    local state = SERVER and "server" or "client"
 
-      if (not dep) then
-        return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
+    -- dirty hack
+    for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
+      for depId, depVersion in pairs(depTable) do
+        local dep = atomic.package.get(depId, depVersion)
+        if (not dep) then
+          return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
+        end
       end
     end
   end
@@ -153,9 +162,9 @@ function atomic.package.load(metadata)
   end
 end
 
----@param packages Atomic.Package.Metadata[]
+---@param packages Atomic.Package.Metadata[]?
 function atomic.package.loadMany(packages)
-  if type(packages) ~= "table" or #packages == 0 then
+  if (type(packages) ~= "table" or #packages == 0) then
     atomic.log:warn("no packages to load")
     return
   end
@@ -197,18 +206,22 @@ function atomic.package.loadMany(packages)
 
     visited[key] = "temp"
 
+    local state = SERVER and "server" or "client"
     local deps = package.dependencies or {}
+    -- copy of dirty hack
+    for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
+      for depId, depVersion in pairs(depTable) do
+        if (depId == "atomic") then
+          continue
+        end
 
-    for depId, depVersion in pairs(deps) do
-      if (depId == "atomic") then
-        continue
-      end
+        local depPkg = findDependency(depId, depVersion)
 
-      local depPkg = findDependency(depId, depVersion)
+        if not depPkg then
+          atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, package.id, package.version)
+          continue
+        end
 
-      if not depPkg then
-        atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, package.id, package.version)
-      else
         visit(depPkg)
       end
     end

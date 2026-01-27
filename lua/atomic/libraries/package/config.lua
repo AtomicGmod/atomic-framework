@@ -21,8 +21,8 @@ atomic.package.config = atomic.package.config or {}
 
 ---@class Atomic.Package.Configuration.Raw
 ---@field default any
----@field description string
 ---@field type ConfigurationContentType
+---@field description? string
 
 ---@class Atomic.Package.Configuration: Atomic.Class
 ---@field private _storage table<string, { type: ConfigurationContentType, value: any }>
@@ -101,10 +101,16 @@ function Configuration:init(configuration, packageId, packageVer)
     for _, row in ipairs(data) do
       local raw = configuration[row.name]
 
+      if (not raw) then
+        atomic.log:warn("package %s@%s - unknown configuration field `%s` with value `%s`", packageId, packageVer, tostring(row.name), tostring(row.value))
+        continue
+      end
+
       local handler = types[raw.type]
 
       if (not handler) then
-        return atomic.log:err("unknown config type '%s' for key '%s'", tostring(raw.type), row.name)
+        atomic.log:err("unknown config type '%s' for key '%s'", tostring(raw.type), row.name)
+        continue
       end
 
       self._storage[row.name] = {
@@ -145,7 +151,7 @@ function Configuration:get(key)
   return entry and entry.value or nil
 end
 
---- 
+---
 ---
 --- ```lua
 --- local value
@@ -187,7 +193,7 @@ function Configuration:set(key, value)
 
   entry.value = value
 
-  local subscribedCallback = self._subscribedCallbacks
+  local subscribedCallback = self._subscribedCallbacks[value]
 
   if (subscribedCallback) then
     subscribedCallback(value)
