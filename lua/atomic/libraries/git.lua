@@ -1,5 +1,5 @@
 if (not util.IsBinaryModuleInstalled("git")) then
-  return
+  return atomic.log:trace("gm_git is not installed")
 end
 
 ---@class Atomic.Git.Folder
