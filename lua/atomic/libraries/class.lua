@@ -17,12 +17,17 @@ atomic.class = atomic.class or {
 
 ---@class Atomic.Class
 ---@field init fun(self: Atomic.Class, ...: any)?
----@field private _name string?
+---@field private _classname string?
 local classMt = {}
 classMt.__index = classMt
 
 function classMt:__tostring()
-  return "class " .. tostring(self._name)
+    return "class " .. self:__classname()
+end
+
+---@return string
+function classMt:__classname()
+  return tostring(self._classname)
 end
 
 --- Creates new class
@@ -31,14 +36,10 @@ end
 ---@return Atomic.Class
 function atomic.class.create(name, parent)
   -- new class inherited from classMt or parent (if provided)
-  local class = setmetatable({ _name = name }, { __index = parent or classMt })
+  local class = setmetatable({ _classname = name }, { __index = parent or classMt })
   class.__index = class
   class.__tostring = function(self)
-    return "instance of " .. tostring(self._name)
-  end
-
-  class.__classname = function(self)
-    return name
+    return "instance of " .. tostring(self._classname)
   end
 
   return class
