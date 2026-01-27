@@ -1,27 +1,27 @@
 atomic.network = atomic.network or {
   logger = atomic.logger.new("atomic.network"),
   _storage = {
-    ---@type table<string, fun(message: Atomic.Network.Message)>
+    ---@type table<string, fun(self: Atomic.Package, message: Atomic.Network.Message)>
     listeners = {},
     ---@type table<string, Atomic.Network.Schema>
     schemas = {}
   },
   ---@alias Atomic.Network.Schema.Types "bool" | "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "u64" | "string" | "data" | "data_uncomp" | "entity" | "player" | "table"
   _types = {
-    bool = {function() return net.ReadBool() end, function(n) net.WriteBool(n) end},
+    bool = {net.ReadBool, net.WriteBool},
     i8 = {function() return net.ReadInt(8) end, function(n) net.WriteInt(n, 8) end},
     i16 = {function() return net.ReadInt(16) end, function(n) net.WriteInt(n, 16) end},
     i32 = {function() return net.ReadInt(32) end, function(n) net.WriteInt(n, 32) end},
     u8 = {function() return net.ReadUInt(8) end, function(n) net.WriteUInt(n, 8) end},
     u16 = {function() return net.ReadUInt(16) end, function(n) net.WriteUInt(n, 16) end},
     u32 = {function() return net.ReadUInt(32) end, function(n) net.WriteUInt(n, 32) end},
-    u64 = {function() return net.ReadUInt64() end, function(n) net.WriteUInt64(n) end},
-    string = {function() return net.ReadString() end, function(n) net.WriteString(n) end},
+    u64 = {net.ReadUInt64, net.WriteUInt64},
+    string = {net.ReadString, net.WriteString},
     data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) local c = util.Compress(n) net.WriteUInt(#c, 32) net.WriteData(c) end},
     data_uncomp = {function() return net.ReadData(net.ReadUInt(32)) end, function(n) net.WriteUInt(#n, 32) net.WriteData(n) end},
-    entity = {function() return net.ReadEntity() end, function(n) net.WriteEntity(n) end},
-    player = {function() return net.ReadPlayer() end, function(n) net.WritePlayer(n) end},
-    table = {function() return net.ReadTable() end, function(n) net.WriteTable(n) end}
+    entity = {net.ReadEntity, net.WriteEntity},
+    player = {net.ReadPlayer, net.WritePlayer},
+    table = {net.ReadTable, net.WriteTable}
   }
 }
 
@@ -37,13 +37,14 @@ local logger = atomic.network.logger
 local schemas = atomic.network._storage.schemas
 local listeners = atomic.network._storage.listeners
 ---@type Atomic.Network.Schema
-local schemaClass = atomic.class.get("NetworkSchema")
+local NetworkSchema = atomic.class.get("NetworkSchema")
 
 --- Creates new schema
--- @param name string
--- @return Atomic.Network.Schema
-function atomic.network.new(name)
-  return atomic.class.new(schemaClass, name)
+---@param package Atomic.Package
+---@param name string
+---@return Atomic.Network.Schema
+function atomic.network.new(package, name)
+  return atomic.class.new(NetworkSchema, package, name)
 end
 
 ---@param schema Atomic.Network.Schema
@@ -91,7 +92,7 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
   net.WriteString(schemaName)
   net.WriteString(id)
 
-  schema:writePackage(data)
+  schema:writeNetPacket(data)
 
   if (SERVER and player) then
     net[sendFunction or "Send"](player)
@@ -136,11 +137,10 @@ function atomic.network.receiver(len, player)
   local schemaName = net.ReadString()
   local messageId = net.ReadString()
   local schema = schemas[schemaName]
-  local message = schema and schema:readPackage(player, messageId)
+  local message = schema and schema:readNetPacket(player, messageId)
 
   if (not schema or not message) then
-    logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
-    return
+    return logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
   end
 
   local awaited = responseAwaiters[messageId]
@@ -153,20 +153,16 @@ function atomic.network.receiver(len, player)
       )
     end
 
-    awaited.callback(message)
-
-    return
+    return awaited.callback(message)
   end
 
   local listener = listeners[schemaName]
 
   if (not listener) then
-    logger:err("no listener for schema `%s`", schemaName)
-
-    return
+    return logger:err("no listener for schema `%s`", schemaName)
   end
 
-  listener(message)
+  listener(schema:getParentPackage(), message)
 end
 
 net.Receive("atomic.framework", atomic.network.receiver)
