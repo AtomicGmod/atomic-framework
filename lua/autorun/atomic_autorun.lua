@@ -2,7 +2,7 @@ atomic = {
   meta = {
     author = "smokingplaya",
     versionName = "Guava",
-    version = "0.7.0",
+    version = "0.7.1",
   }
 }
 
@@ -48,10 +48,11 @@ shared("atomic/utils/aliases.lua")
 
 atomic.log = atomic.logger.new("atomic")
 
+local packageLoadingStart = SysTime()
+
 local package = atomic.package
 local packages = package.find("atomic/packages")
----@cast packages Atomic.Package[]
 
 package.loadMany(packages)
 
-atomic.log:info("Atomic Framework %s has been loaded for %sms", atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5))
+atomic.log:info("Atomic Framework %s has been loaded for %sms (packages loaded for %sms)", atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))

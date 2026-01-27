@@ -162,7 +162,7 @@ function atomic.package.load(metadata)
   end
 end
 
----@param packages Atomic.Package.Metadata[]
+---@param packages Atomic.Package.Metadata[]?
 function atomic.package.loadMany(packages)
   if (type(packages) ~= "table" or #packages == 0) then
     atomic.log:warn("no packages to load")
