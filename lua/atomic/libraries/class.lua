@@ -138,7 +138,7 @@ function atomic.class.register(class, package)
     storage[id][version] = {}
   end
 
-  storage[id][version][class._name] = class
+  storage[id][version][class._classname] = class
 
   atomic.class._storage = storage
 end
@@ -147,7 +147,7 @@ function atomic.class.unregister(class, package)
   local storage = atomic.class._storage
   local id, version = package.id, package.version
 
-  storage[id][version][class._name] = nil
+  storage[id][version][class._classname] = nil
 
   atomic.class._storage = storage
 end

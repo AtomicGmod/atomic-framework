@@ -1,14 +1,18 @@
-<h1 align="center">
+<div align="center">
   <img src="assets/logo.png"/>
-  <p align="center">Atomic Framework</p>
+  <h1 align="center">Atomic Framework</h1>
 
   <img src="https://img.shields.io/github/actions/workflow/status/TeamMeadows/atomic-framework/build.yml">
   <img src="https://img.shields.io/github/release/TeamMeadows/atomic-framework.svg">
   <img src="https://img.shields.io/github/issues/TeamMeadows/atomic-framework.svg">
   <img src="https://img.shields.io/github/license/TeamMeadows/atomic-framework.svg">
 
-  | [Download](/releases/latest/) | [Documentation](/wiki) |
-</h1>
+  [Download] | [Getting Started] | [Documentation]
+</div>
+
+[Download]: https://github.com/TeamMeadows/atomic-framework/releases/latest
+[Getting Started]: https://github.com/TeamMeadows/atomic-framework/wiki#getting-started
+[Documentation]: https://github.com/TeamMeadows/atomic-framework/wiki
 
 Atomic is a flexible, OOP-driven framework for building Garry’s Mod addons and gamemodes with a clean, modular architecture.
 Each **package** is a self-contained unit - just like an addon - with built-in dependency management and powerful libraries for writing structured, maintainable Lua code.
@@ -18,7 +22,7 @@ local package = current()
 local libui = package:getDependency("com.developername.libui")
 
 package:listen(function(self)
-  libui:drawText(self:getPhrase("en", "hello_world"), libui.textSize.small, ScrW() / 2, ScrH()/2, color_white, TEXT_ALIGN_CENTER)
+  libui:drawText(self:getPhrase("en", "hello_world"), libui.textSize.small, ScrW() / 2, ScrH() / 2, libui.color.white, libui.position.center)
 end, "HUDPaint")
 
 package:listen(function(self)

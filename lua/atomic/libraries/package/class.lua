@@ -469,7 +469,7 @@ end
 function Package:class(name, parent)
   local class = atomic.class.create(name, parent)
 
-  self:register("classes", class._name, class)
+  self:register("classes", class:__classname(), class)
 
   return class
 end
