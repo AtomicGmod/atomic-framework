@@ -1,6 +1,6 @@
-<h1 align="center">
+<div align="center">
   <img src="assets/logo.png"/>
-  <p align="center">Atomic Framework</p>
+  <h1 align="center">Atomic Framework</h1>
 
   <img src="https://img.shields.io/github/actions/workflow/status/TeamMeadows/atomic-framework/build.yml">
   <img src="https://img.shields.io/github/release/TeamMeadows/atomic-framework.svg">
@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/github/license/TeamMeadows/atomic-framework.svg">
 
   [Download] | [Getting Started] | [Documentation]
-</h1>
+</div>
 
 [Download]: https://github.com/TeamMeadows/atomic-framework/releases/latest
 [Getting Started]: https://github.com/TeamMeadows/atomic-framework/wiki#getting-started
