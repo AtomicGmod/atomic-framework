@@ -21,6 +21,8 @@ includeSh("atomic/libraries/class.lua")
 includeSh("atomic/libraries/logger.lua")
 includeSh("atomic/libraries/loader.lua")
 
+atomic.log = atomic.logger.new("atomic")
+
 local loader = atomic.loader
 local client, shared, server = loader.client, loader.shared, loader.server
 ---@include
@@ -45,8 +47,6 @@ server("atomic/libraries/git.lua")
 -- package loading should be latest
 shared("atomic/libraries/package/common.lua")
 shared("atomic/utils/aliases.lua")
-
-atomic.log = atomic.logger.new("atomic")
 
 local packageLoadingStart = SysTime()
 

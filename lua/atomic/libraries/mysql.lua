@@ -1,5 +1,5 @@
 if (not util.IsBinaryModuleInstalled("mysqloo")) then
-	return
+  return atomic.log:trace("mysqloo is not installed")
 end
 
 if (not mysqloo) then
