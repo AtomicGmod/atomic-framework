@@ -4,3 +4,4 @@ async = coroutine.start
 
 Instant = atomic.time.newInstant
 Duration = atomic.time.newDuration
+SemVer = atomic.semver.new
