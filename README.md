@@ -11,8 +11,8 @@
 </div>
 
 [Download]: https://github.com/TeamMeadows/atomic-framework/releases/latest
-[Getting Started]: https://github.com/TeamMeadows/atomic-framework/wiki#getting-started
-[Documentation]: https://github.com/TeamMeadows/atomic-framework/wiki
+[Getting Started]: https://deepwiki.com/TeamMeadows/atomic-framework/1.2-quick-start-guide
+[Documentation]: https://deepwiki.com/TeamMeadows/atomic-framework/
 
 Atomic is a flexible, OOP-driven framework for building Garry’s Mod addons and gamemodes with a clean, modular architecture.
 Each **package** is a self-contained unit - just like an addon - with built-in dependency management and powerful libraries for writing structured, maintainable Lua code.
@@ -29,7 +29,7 @@ package:listen(function(self)
   self.logger:info("package successfully enabled")
 end, "onEnable")
 ```
-###### Real example of addon based on Atomic
+###### Example of addon based on Atomic
 
 ---
 

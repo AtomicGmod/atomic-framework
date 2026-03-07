@@ -1,7 +1,7 @@
----@type Atomic.Package.Metadata
+---@type PackageMeta
 return {
-  id = "team.meadows.example_ping",
-  title = "Example: Ping",
+  id = "org.example.ping",
+  title = "Ping",
   version = "1.0.0",
   files = {
     client = { "core/client.lua" },
@@ -10,7 +10,7 @@ return {
   },
   dependencies = {
     shared = {
-      atomic = "~0.7.1"
+      atomic = "~0.8.0-rc.1"
     }
   }
 }

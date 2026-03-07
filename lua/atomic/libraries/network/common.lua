@@ -126,6 +126,8 @@ function atomic.network.sendAsync(schemaName, data, player)
   timer.Simple(5, function()
     responseAwaiters[id] = nil
 
+    atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
+
     coroutine.resume(co, "timeout")
   end)
 
@@ -140,7 +142,7 @@ function atomic.network.receiver(len, player)
   local message = schema and schema:readNetPacket(player, messageId)
 
   if (not schema or not message) then
-    return logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
+    return logger:warn("an unknown net packet was received from `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
   end
 
   local awaited = responseAwaiters[messageId]
@@ -148,7 +150,7 @@ function atomic.network.receiver(len, player)
   if (awaited) then
     if (awaited.sendedTo ~= nil and awaited.sendedTo ~= player) then
       return logger:warn(
-        "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`.",
+        "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`",
         messageId, awaited.sendedTo, player
       )
     end

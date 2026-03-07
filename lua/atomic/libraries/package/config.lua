@@ -148,7 +148,7 @@ end
 ---@return T?
 function Configuration:get(key)
   local entry = self._storage[key]
-  return entry and entry.value or nil
+  return entry and entry.value
 end
 
 ---
@@ -167,7 +167,7 @@ end
 function Configuration:subscribe(callback, key)
   local value = self:get(key)
 
-  if (value) then
+  if (value ~= nil) then
     callback(value)
   end
 
@@ -193,7 +193,7 @@ function Configuration:set(key, value)
 
   entry.value = value
 
-  local subscribedCallback = self._subscribedCallbacks[value]
+  local subscribedCallback = self._subscribedCallbacks[key]
 
   if (subscribedCallback) then
     subscribedCallback(value)
