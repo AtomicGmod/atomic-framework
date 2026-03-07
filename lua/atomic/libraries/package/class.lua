@@ -1,3 +1,5 @@
+---@alias ScriptState "client" | "shared" | "server"
+
 ---@class Atomic.Package.Metadata
 ---@field id string
 ---@field title string
@@ -5,19 +7,27 @@
 ---@field version string
 ---@field documentation? string
 ---@field configuration? table<string, Atomic.Package.Configuration.Raw>
----@field files table<"client" | "shared" | "server", string[]>
----@field dependencies? table<"client" | "shared" | "server", table<"atomic" | string, string>>
+---@field homepageUrl? string
+---@field files table<ScriptState, string[]>
+---@field dependencies? table<ScriptState, table<("atomic" | string), string>>
 ---@field kind? "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
----@field private _path string? `Internal` field
+
+---@alias PackageMeta Atomic.Package.Metadata
+
+---@class Atomic.Package.InternalMetadata: Atomic.Package.Metadata
+---@field private version Atomic.SemanticVersion
+---@field private _path string?
 
 ---@class Atomic.Package: Atomic.Class
+---@field private _coreVersion string
+---@field private _version string
 ---@field private _state? table<string, any>
----@field private _metadata Atomic.Package.Metadata
+---@field private _metadata Atomic.Package.InternalMetadata
 ---@field private _registry? Atomic.Package.Registry
 ---@field private _data? table<string, table>
--- @field private _configuration Atomic.Package.Configuration
+---@field private _configuration Atomic.Package.Configuration
 ---@field private _isEnabled boolean?
 ---@field logger Atomic.Logger
 local Package = atomic.class.create("Package")
@@ -28,13 +38,16 @@ local Configuration = atomic.class.get("Configuration")
 ---@type Atomic.Package.Registry
 local PackageRegistry = atomic.class.get("PackageRegistry")
 
----@param metadata Atomic.Package.Metadata
+---@param metadata Atomic.Package.InternalMetadata
 function Package:init(metadata)
   local splittedId = metadata.id:Split(".")
   local prefix = (splittedId[#splittedId] or metadata.id):lower()
+  local version = metadata.version
 
   self._isEnabled = false
   self._metadata = metadata
+  self._coreVersion = version:getCore()
+  self._version = version:toString()
   self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, metadata.version)
   self.logger = atomic.logger.new(prefix)
 
@@ -155,7 +168,7 @@ function Package:load()
   self:include("client", files.client)
 
   self:enable()
-  self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._metadata.version, instant:elapsed():as_millis())
+  self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._version, instant:elapsed():as_millis())
 end
 
 ---@private
@@ -179,7 +192,7 @@ end
 ---@private
 function Package:unload()
   self:disable()
-  self.logger:trace("package `%s@%s` unloaded successfully", self._metadata.id, self._metadata.version)
+  self.logger:trace("package `%s@%s` unloaded successfully", self._metadata.id, self._version)
 end
 
 --- Enable/Disable
@@ -243,9 +256,23 @@ function Package:getId()
   return self._metadata.id
 end
 
+--- Example: 1.0.0
 ---@return string
+function Package:getVersionString()
+  return self._coreVersion
+end
+
+--- Example: 1.0.0-rc.1+build.18
+---@return string
+function Package:getVersionFullString()
+  return self._version
+end
+
+---@return Atomic.SemanticVersion
 function Package:getVersion()
-  return self._metadata.version
+  local version = self._metadata.version
+  ---@cast version Atomic.SemanticVersion
+  return version
 end
 
 ---@return string
@@ -256,6 +283,11 @@ end
 ---@return string?
 function Package:getDocumentation()
   return self._metadata.documentation
+end
+
+---@return string?
+function Package:getHomepageUrl()
+  return self._metadata.homepageUrl
 end
 
 ---@return string?
@@ -404,9 +436,8 @@ end
 
 ---@alias Atomic.Package.Events "onEnable" | "onDisable" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
 
----@private
 function Package:formatUniversalId(eventName)
-  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._metadata.version, eventName)
+  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, eventName)
 end
 
 --- Adds an event for listening
@@ -536,7 +567,7 @@ end
 ---@param autoSpawn? boolean = true
 ---@return Atomic.WebView
 function Package:webview(name, autoSpawn)
-  local folder = self._metadata.id .. "@" .. self._metadata.version
+  local folder = self._metadata.id .. "@" .. self._version
   local path = "asset://garrysmod/resource/webviews/" .. folder
 
   local webview = atomic.webview.new(name, path, autoSpawn)

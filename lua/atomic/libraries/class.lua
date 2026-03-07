@@ -6,11 +6,14 @@ atomic.class = atomic.class or {
     }
   },
   pseudo = {
+    ---@type Atomic.Package.Metadata
     _metadata = {
       id = "atomic",
+      title = "Atomic Framework",
       version = atomic.meta.version,
       documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
-      icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png"
+      icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png",
+      files = {}
     }
   }
 }
@@ -70,7 +73,7 @@ function atomic.class.get(name, packageOrId, packageVersion)
       or type(packageVersion) == "string" and packageVersion
       or pkgName == "atomic" and atomic.meta.version
 
-  return ((atomic.class._storage[pkgName] or {})[pkgVersion] or {})[name]
+  return ((atomic.class._storage[pkgName] or {})[istable(pkgVersion) and pkgVersion:getString() or pkgVersion] or {})[name]
 end
 
 --- Creates a new class instance
@@ -123,12 +126,19 @@ function atomic.class.accessors(class, ...)
   end
 end
 
+---@param version Atomic.SemanticVersion | string
+---@return string
+local versionToString = function(version)
+  ---@diagnostic disable-next-line
+  return isstring(version) and version or version:getString()
+end
+
 --- Registers the class in the storage, allowing it to be get via ``atomic.class.get``
 ---@param class Atomic.Class
 ---@param package Atomic.Package
 function atomic.class.register(class, package)
   local storage = atomic.class._storage
-  local id, version = package._metadata.id, package._metadata.version
+  local id, version = package._metadata.id, versionToString(package._metadata.version)
 
   if (type(storage[id]) ~= "table") then
     storage[id] = {}
@@ -143,9 +153,11 @@ function atomic.class.register(class, package)
   atomic.class._storage = storage
 end
 
+---@param class Atomic.Class
+---@param package Atomic.Package
 function atomic.class.unregister(class, package)
   local storage = atomic.class._storage
-  local id, version = package.id, package.version
+  local id, version = package._metadata.id, versionToString(package._metadata.version)
 
   storage[id][version][class._classname] = nil
 

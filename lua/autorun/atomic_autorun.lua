@@ -1,8 +1,8 @@
 atomic = {
   meta = {
     author = "smokingplaya",
-    versionName = "Guava",
-    version = "0.7.2",
+    versionName = "Papaya",
+    version = "0.8.0-rc.1",
   }
 }
 
@@ -30,9 +30,9 @@ local client, shared, server = loader.client, loader.shared, loader.server
 shared("atomic/utils/table.lua")
 shared("atomic/utils/debug.lua")
 shared("atomic/utils/coroutine.lua")
-shared("atomic/utils/semver.lua")
 shared("atomic/utils/global.lua")
 -- libraries
+shared("atomic/libraries/semver.lua")
 shared("atomic/libraries/i18n.lua")
 shared("atomic/libraries/bind.lua")
 shared("atomic/libraries/network/common.lua")
@@ -55,4 +55,4 @@ local packages = package.find("atomic/packages")
 
 package.loadMany(packages)
 
-atomic.log:info("Atomic Framework %s has been loaded for %sms (packages loaded for %sms)", atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))
+atomic.log:info("Atomic Framework %s %s has been loaded for %sms (packages loaded for %sms)", atomic.meta.version, atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))
