@@ -1,15 +1,17 @@
 ---@alias ScriptState "client" | "shared" | "server"
 
+---@alias Atomic.Package.Metadata.Dependency string | { optional: true, version: string }
+
 ---@class Atomic.Package.Metadata
 ---@field id string
 ---@field title string
 ---@field description? string
 ---@field version string
 ---@field documentation? string
----@field configuration? table<string, Atomic.Package.Configuration.Raw>
 ---@field homepageUrl? string
+---@field configuration? table<string, Atomic.Package.Configuration.Raw>
 ---@field files table<ScriptState, string[]>
----@field dependencies? table<ScriptState, table<("atomic" | string), string>>
+---@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
 ---@field kind? "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
@@ -53,6 +55,11 @@ function Package:init(metadata)
 
   self:addRegistry()
   self:addLanguageFromMetadata()
+end
+
+---@private
+function Package:__tostring()
+  return "Package [" .. tostring(self:getId()) ..  "][" .. tostring(self:getVersionFullString()) .. "]"
 end
 
 ---@private
@@ -324,26 +331,27 @@ function Package:getConfiguration()
   return self._configuration
 end
 
+---@protected
+---@param state ScriptState
+---@param id string
+---@return string?
+function Package:getDependencyVersionByState(state, id)
+  local dependencies = self._metadata.dependencies
+  local stateDependencies = dependencies and dependencies[state]
+  local depVersionData = stateDependencies and stateDependencies[id]
+
+  ---@diagnostic disable-next-line
+  return istable(depVersionData) and depVersionData.version or depVersionData
+end
+
 ---@param id string
 ---@return Atomic.Package?
 function Package:getDependency(id)
-  local dependecies = self._metadata.dependencies
-
-  if (not dependecies) then
-    return
-  end
-
-  local stateDeps = dependecies[SERVER and "server" or "client"]
-
-  local version = stateDeps and stateDeps[id]
+  local version = self:getDependencyVersionByState(SERVER and "server" or "client", id)
+    or self:getDependencyVersionByState("shared", id)
 
   if (not version) then
-    local sharedDeps = dependecies.shared
-    version = sharedDeps and sharedDeps[id]
-
-    if (not version) then
-      return self.logger:err("dependency `%s` is not specified in package.lua!", id)
-    end
+    return self.logger:err("dependency `%s` is not specified in package.lua!", id)
   end
 
   return atomic.package.get(id, version)
@@ -495,8 +503,8 @@ end
 --- Creates new class and automatically registeres it
 ---@param name string
 ---@param parent? Atomic.Class
----@generic T
----@return T: Atomic.Class
+---@generic T: Atomic.Class
+---@return T
 function Package:class(name, parent)
   local class = atomic.class.create(name, parent)
 

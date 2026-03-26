@@ -149,9 +149,13 @@ function atomic.package.load(metadata)
 
     -- dirty hack
     for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersion in pairs(depTable) do
+      for depId, depVersionData in pairs(depTable) do
+        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+        ---@cast depVersion string
         local dep = atomic.package.get(depId, depVersion)
-        if (not dep) then
+
+        if (not dep and not isDependencyOptional) then
           return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
         end
       end
@@ -200,11 +204,11 @@ function atomic.package.loadMany(packages)
     local key = getKey(package)
 
     local id, version = package.id, package.version:getString()
-    if visited[key] == "temp" then
+    if (visited[key] == "temp") then
       return atomic.log:err("dependency cycle detected on %s@%s", id, version)
     end
 
-    if visited[key] then
+    if (visited[key]) then
       return
     end
 
@@ -212,9 +216,12 @@ function atomic.package.loadMany(packages)
 
     local state = SERVER and "server" or "client"
     local deps = package.dependencies or {}
-    -- copy of dirty hack
+
     for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersion in pairs(depTable) do
+      for depId, depVersionData in pairs(depTable) do
+        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+
         if (depId == "atomic") then
           continue
         end
@@ -222,7 +229,10 @@ function atomic.package.loadMany(packages)
         local depPkg = findDependency(depId, depVersion)
 
         if (not depPkg) then
-          atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
+          if (not isDependencyOptional) then
+            atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
+          end
+
           continue
         end
 
