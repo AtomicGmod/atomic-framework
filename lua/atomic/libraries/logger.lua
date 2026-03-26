@@ -28,7 +28,7 @@ function atomic.logger.new(prefix)
 end
 
 local function getcurrenttime()
-  return os.date("%H:%M:%S")
+  return os.date("%X")
 end
 
 -- colors
@@ -95,4 +95,5 @@ end
 
 function Logger:err(message, ...)
   self:log(err, "ERR", message, ...)
+  _G["debug"].Trace()
 end

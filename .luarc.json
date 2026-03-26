@@ -31,6 +31,7 @@
       "todo",
       "new",
       "current",
-      "async"
+      "async",
+      "super"
   ]
 }
