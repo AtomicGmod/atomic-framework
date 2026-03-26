@@ -15,16 +15,17 @@ local logger = atomic.mysql.logger
 file.CreateDir("atomic/mysql")
 
 if (file.Size("data/atomic/mysql/credentials.json", "GAME") <= 0) then
-  local defaultJson = [[{
-    "host": "127.0.0.1",
-    "user": "root",
-    "password": "root",
-    "table": "gmod",
-    "port": 3306
-}]];
+  local defaultCredentials = {
+    host = "127.0.0.1",
+    user = "root",
+    password = "root",
+    table = "gmod",
+    port = 3306
+  }
 
-  file.Write("atomic/mysql/credentials.json", defaultJson)
-	logger:warn("the `credentials.json` file has just been created in `data/atomic/mysql/` folder. to work with MySQL, fill in the database connection credentials in this file.")
+  file.Write("atomic/mysql/credentials.json", util.TableToJSON(defaultCredentials, true))
+
+	logger:info("the `credentials.json` file has just been created in `data/atomic/mysql/` folder. to work with MySQL, fill in the database connection credentials in this file.")
 end
 
 ---@class Atomic.MySQL.Credentials
