@@ -73,6 +73,7 @@ function atomic.class.get(name, packageOrId, packageVersion)
       or type(packageVersion) == "string" and packageVersion
       or pkgName == "atomic" and atomic.meta.version
 
+  ---@diagnostic disable-next-line
   return ((atomic.class._storage[pkgName] or {})[istable(pkgVersion) and pkgVersion:getString() or pkgVersion] or {})[name]
 end
 
@@ -162,4 +163,36 @@ function atomic.class.unregister(class, package)
   storage[id][version][class._classname] = nil
 
   atomic.class._storage = storage
+end
+
+--- Returns the parent class of instance
+---@param class Atomic.Class
+---@generic T: Atomic.Class
+---@return T?
+function atomic.class.getParent(class)
+  local parent = getmetatable(getmetatable(class))
+  return parent and parent.__index
+end
+
+--- Calls the `init` method in the parent class
+---
+--- # Example
+--- ```lua
+--- local Player = package:getClass("Player")
+--- local User = package:class("User", Player) -- creating new class `User` that inherits class `Player`
+---
+--- function User:init()
+---   super(self) -- calling Player:init() method
+--- end
+--- ```
+---@param instance Atomic.Class
+---@vararg ...
+function atomic.class.super(instance, ...)
+  local parent = atomic.class.getParent(instance)
+  ---@cast parent Atomic.Class
+
+  assert(istable(parent), "class hasn't parent")
+  assert(isfunction(parent.init), "parent class has no init method")
+
+  parent.init(instance, ...)
 end
