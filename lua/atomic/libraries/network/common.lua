@@ -25,8 +25,10 @@ atomic.network = atomic.network or {
   }
 }
 
+local netChannelName = "atomicframe:" .. atomic.meta.version
+
 if (SERVER) then
-	util.AddNetworkString("atomic.framework")
+	util.AddNetworkString(netChannelName)
 end
 
 ---@include
@@ -88,7 +90,7 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
     error("network schema " .. tostring(schemaName) .. " not found")
   end
 
-  net.Start("atomic.framework")
+  net.Start(netChannelName)
   net.WriteString(schemaName)
   net.WriteString(id)
 
@@ -124,11 +126,13 @@ function atomic.network.sendAsync(schemaName, data, player)
 
   -- timeout handler
   timer.Simple(5, function()
-    responseAwaiters[id] = nil
+    if (responseAwaiters[id] ~= nil) then
+      responseAwaiters[id] = nil
 
-    atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
+      atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
 
-    coroutine.resume(co, "timeout")
+      coroutine.resume(co, "timeout")
+    end
   end)
 
   return coroutine.yield()
@@ -155,6 +159,8 @@ function atomic.network.receiver(len, player)
       )
     end
 
+    responseAwaiters[messageId] = nil
+
     return awaited.callback(message)
   end
 
@@ -167,4 +173,4 @@ function atomic.network.receiver(len, player)
   listener(schema:getParentPackage(), message)
 end
 
-net.Receive("atomic.framework", atomic.network.receiver)
+net.Receive(netChannelName, atomic.network.receiver)
