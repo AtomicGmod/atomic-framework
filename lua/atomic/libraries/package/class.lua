@@ -48,9 +48,9 @@ function Package:init(metadata)
 
   self._isEnabled = false
   self._metadata = metadata
-  self._coreVersion = version:getCore()
-  self._version = version:toString()
-  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, metadata.version)
+  self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
+  self._version = version:toString() -- 1.0.0-alpha.1 (full version string)
+  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, self._version)
   self.logger = atomic.logger.new(prefix)
 
   self:addRegistry()
@@ -235,6 +235,7 @@ function Package:disable()
 
   local localization = self._metadata.language
 
+  -- todo why its is not in registry?
   if (localization) then
     for language, tab in pairs(localization) do
       for phraseId in pairs(tab) do
