@@ -35,6 +35,7 @@ atomic.class.register(Configuration, atomic.class.pseudo)
 if (not sql.TableExists("atomic_config")) then
   sql.Query([[CREATE TABLE IF NOT EXISTS atomic_config(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server TEXT,
     package_id TEXT NOT NULL,
     package_version TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
@@ -85,6 +86,8 @@ local types = {
   }
 }
 
+local serverIp = CLIENT and game.GetIPAddress() or nil
+
 ---@param configuration table<string, Atomic.Package.Configuration.Raw>
 ---@param packageId string
 ---@param packageVer string
@@ -94,7 +97,7 @@ function Configuration:init(configuration, packageId, packageVer)
   self._storage = {}
   self._subscribedCallbacks = {}
 
-  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=? AND package_version = ?", packageId, packageVer)
+  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE server=? AND package_id=? AND package_version = ?", serverIp, packageId, packageVer)
   ---@cast data { name: string, value: string }[]
 
   if (istable(data)) then
@@ -129,7 +132,7 @@ function Configuration:init(configuration, packageId, packageVer)
     if (not self._storage[name]) then
       local handler = types[raw.type]
       local defaultValue = handler and handler.serialize(raw.default) or tostring(raw.default)
-      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, package_version, name, value) VALUES(?, ?, ?, ?)", packageId, packageVer, name, defaultValue)
+      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(server, package_id, package_version, name, value) VALUES(?, ?, ?, ?, ?)", serverIp, packageId, packageVer, name, defaultValue)
       self._storage[name] = { type = raw.type, value = raw.default }
     end
   end
@@ -189,7 +192,7 @@ function Configuration:set(key, value)
 
   local data = handler.serialize(value)
 
-  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE name=? AND package_id=? AND package_version=?", data, key, self._package.id, self._package.version)
+  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server=? AND name=? AND package_id=? AND package_version=?", data, serverIp, key, self._package.id, self._package.version)
 
   local isSuccessful = true
   local subscribedCallback = self._subscribedCallbacks[key]
