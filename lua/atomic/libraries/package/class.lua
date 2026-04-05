@@ -12,7 +12,7 @@
 ---@field configuration? table<string, Atomic.Package.Configuration.Raw>
 ---@field files table<ScriptState, string[]>
 ---@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
----@field kind? "system" | "library"
+---@field kind "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
 
@@ -28,7 +28,6 @@
 ---@field private _state? table<string, any>
 ---@field private _metadata Atomic.Package.InternalMetadata
 ---@field private _registry? Atomic.Package.Registry
----@field private _data? table<string, table>
 ---@field private _configuration Atomic.Package.Configuration
 ---@field private _isEnabled boolean?
 ---@field logger Atomic.Logger
@@ -48,6 +47,7 @@ function Package:init(metadata)
 
   self._isEnabled = false
   self._metadata = metadata
+  self._metadata.kind = self._metadata.kind or "library"
   self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
   self._version = version:toString() -- 1.0.0-alpha.1 (full version string)
   self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, self._version)
@@ -62,58 +62,53 @@ function Package:__tostring()
   return "Package [" .. tostring(self:getId()) ..  "][" .. tostring(self:getVersionFullString()) .. "]"
 end
 
+---@alias Atomic.Package.RegistryCategories "events" | "binds" | "classes" | "commands" | "netschemas" | "netlisteners" | "webviews"
+---@type table<Atomic.Package.RegistryCategories, {[1]: fun(Atomic.Package, any, any), [2]: fun(Atomic.Package, any, any)}>
+local systemRegistry = {
+  events = {
+    function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), function(...) return listener(self, ...) end) end,
+    function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
+  },
+  binds = {
+    function(_, _, data)
+      local regId = atomic.bind.bind(data.key, data.callback)
+      data.registrationId = regId
+    end,
+    function(_, _, data) atomic.bind.unbind(data.registrationId) end
+  },
+  commands = {
+    function(_, name, command) atomic.command.add(name, command) end,
+    function(_, name) atomic.command.remove(name) end
+  },
+  netschemas = {
+    function(_, _, schema) atomic.network.register(schema) end,
+    function(_, _, schema) atomic.network.unregister(schema._name) end
+  },
+  netlisteners = {
+    function(self, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
+    function(self, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
+  },
+  webviews = {
+    function(self, _, webview) atomic.webview.register(webview, self) end,
+    function(self, name) atomic.webview.unregister(name, self) end
+  }
+}
+
 ---@private
 function Package:addRegistry()
-  self._registry = atomic.class.new(PackageRegistry)
-  self._data = {
-    classes = {}
-  }
+  self._registry = atomic.class.new(PackageRegistry, self)
 
-  self._registry:define("classes",
+  self._registry:addCategory("classes",
     function(self, _, class) atomic.class.register(class, self) end,
     function(self, className) atomic.class.unregister(className, self) end
   )
 
-  if (self._metadata.kind ~= "library") then
+  if (self:isSystem()) then
     self._state = {}
-    self._data["events"] = {}
-    self._data["commands"] = {}
-    self._data["binds"] = {}
-    self._data["netschemas"] = {}
-    self._data["netlisteners"] = {}
-    self._data["webviews"] = {}
-    self._registry:define("events",
-      function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), function(...) return listener(self, ...) end) end,
-      function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
-    )
 
-    self._registry:define("binds",
-      function(_, _, data)
-        local regId = atomic.bind.bind(data.key, data.callback)
-        data.registrationId = regId
-      end,
-      function(_, _, data) atomic.bind.unbind(data.registrationId) end
-    )
-
-    self._registry:define("commands",
-      function(_, name, command) atomic.command.add(name, command) end,
-      function(_, name) atomic.command.remove(name) end
-    )
-
-    self._registry:define("netschemas",
-      function(_, _, schema) atomic.network.register(schema) end,
-      function(_, _, schema) atomic.network.unregister(schema._name) end
-    )
-
-    self._registry:define("netlisteners",
-      function(_, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
-      function(_, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
-    )
-
-    self._registry:define("webviews",
-      function(_, _, webview) atomic.webview.register(webview, self) end,
-      function(_, name) atomic.webview.unregister(name, self) end
-    )
+    for name, tab in pairs(systemRegistry) do
+      self._registry:addCategory(name, tab[1], tab[2])
+    end
   end
 end
 
@@ -133,32 +128,18 @@ function Package:addLanguageFromMetadata()
 end
 
 ---@private
----@param category "events" | "binds" | "classes"| "commands" | "netschemas" | "netlisteners" | "webviews"
+---@param category Atomic.Package.RegistryCategories
 ---@param index string | integer
 ---@param value any
 function Package:register(category, index, value)
-  self._data[category][index] = value
-
-  if (self._isEnabled) then
-    self._registry:add(category, self, index, value)
-  end
+  self._registry:set(category, index, value)
 end
 
 ---@private
----@param category string
+---@param category Atomic.Package.RegistryCategories
 ---@param index string | integer
 function Package:unregister(category, index)
-  local value = self._data[category][index]
-
-  if (not value) then
-    return
-  end
-
-  if (self._isEnabled) then
-    self._registry:remove(category, self, index, value)
-  end
-
-  self._data[category][index] = nil
+  self._registry:set(category, index)
 end
 
 ---@private
@@ -208,15 +189,11 @@ end
 function Package:enable()
   self:emitEvent("onEnable")
 
-  if (self._data) then
-    for category, entries in pairs(self._data) do
-      for index, entry in pairs(entries) do
-        self._registry:add(category, self, index, entry)
-      end
-    end
-  end
+  self._registry:enable()
 
   self._isEnabled = true
+
+  self:emitEvent("onEnabled")
 end
 
 local removePhrase = atomic.i18n.removePhrase
@@ -225,13 +202,7 @@ local removePhrase = atomic.i18n.removePhrase
 function Package:disable()
   self:emitEvent("onDisable")
 
-  if (self._data) then
-    for category, entries in pairs(self._data) do
-      for index, entry in pairs(entries) do
-        self._registry:remove(category, self, index, entry)
-      end
-    end
-  end
+  self._registry:disable()
 
   local localization = self._metadata.language
 
@@ -249,7 +220,9 @@ function Package:disable()
     self._state = {}
   end
 
-  self._isEnabled = true
+  self._isEnabled = false
+
+  self:emitEvent("onDisabled")
 end
 
 --- Metadata
@@ -401,7 +374,7 @@ end
 ---@param key number
 ---@return integer registrationId
 function Package:bind(callback, key)
-  local id = #self._data.binds+1
+  local id = self._registry:length("binds") + 1
 
   self:register("binds", id, {
     key = key,
@@ -443,7 +416,7 @@ end
 
 --- Events
 
----@alias Atomic.Package.Events "onEnable" | "onDisable" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
+---@alias Atomic.Package.Events "onEnable" | "onEnabled" | "onDisable" | "onDisabled" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
 
 function Package:formatUniversalId(eventName)
   return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, eventName)
@@ -486,11 +459,7 @@ end
 ---@param name Atomic.Package.Events
 ---@vararg any
 function Package:emitEvent(name, ...)
-  if (not self._data.events) then
-    return
-  end
-
-  local listener = self._data.events[name]
+  local listener = self._registry:lookup("events", name)
 
   if (not listener) then
     return
@@ -517,7 +486,7 @@ end
 --- Return package's registered class
 ---@param name string
 function Package:getClass(name)
-  return self._data.classes[name]
+  return self._registry:lookup("classes", name)
 end
 
 --- Network
@@ -549,7 +518,8 @@ end
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
 ---@return string Message id
 function Package:sendNetworkMessage(name, data, player, sendFunction)
-  local schema = self._data.netschemas[name]
+  ---@type Atomic.Network.Schema
+  local schema = self._registry:lookup("netschemas", name)
 
   return atomic.network.send(schema._name, data, player, sendFunction)
 end
@@ -557,7 +527,7 @@ end
 ---@param name string
 ---@param data table<string, any>
 function Package:broadcastNetworkMessage(name, data)
-  self:sendNetworkMessage(name, data, player.GetHumans(), "Broadcast")
+  self:sendNetworkMessage(name, data, nil, "Broadcast")
 end
 
 ---@async
@@ -566,7 +536,7 @@ end
 ---@param player Player?
 ---@return Atomic.Network.Message | string
 function Package:sendNetworkMessageAsync(name, data, player)
-  local schema = self._data.netschemas[name]
+  local schema = self._registry:lookup("netschemas", name)
 
   return atomic.network.sendAsync(schema._name, data, player)
 end
@@ -590,5 +560,5 @@ end
 ---@param name string
 ---@return Atomic.WebView
 function Package:getWebview(name)
-  return self._data.webviews[name]
+  return self._registry:lookup("webviews", name)
 end
