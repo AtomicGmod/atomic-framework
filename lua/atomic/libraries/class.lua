@@ -6,15 +6,9 @@ atomic.class = atomic.class or {
     }
   },
   pseudo = {
-    ---@type Atomic.Package.Metadata
     _metadata = {
       id = "atomic",
-      title = "Atomic Framework",
-      kind = "system",
       version = atomic.meta.version,
-      documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
-      icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png",
-      files = {}
     }
   }
 }
@@ -26,7 +20,7 @@ local classMt = {}
 classMt.__index = classMt
 
 function classMt:__tostring()
-    return "class " .. self:__classname()
+    return "Class " .. self:__classname()
 end
 
 ---@return string
@@ -43,7 +37,7 @@ function atomic.class.create(name, parent)
   local class = setmetatable({ _classname = name }, { __index = parent or classMt })
   class.__index = class
   class.__tostring = function(self)
-    return "instance of " .. tostring(self._classname)
+    return "Instance of " .. tostring(self._classname)
   end
 
   return class

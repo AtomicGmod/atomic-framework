@@ -35,10 +35,8 @@ end
 ---@field table string
 ---@field port? integer
 local credentials = util.JSONToTable(file.Read("atomic/mysql/credentials.json"))
-local autoconnect = CreateConVar("atomic_mysql_autoconnect", "1", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL be automatic?")
-local multipleStatements = CreateConVar("atomic_mysql_multistatements", "0", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL have multi statements enabled?")
 
-if (autoconnect:GetBool() and not atomic.mysql._database) then
+if (atomic._config.mysqlAutoconnect and not atomic.mysql._database) then
   atomic.mysql._database = mysqloo.connect(
     credentials.host,
     credentials.user,
@@ -65,7 +63,7 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
     logger:debug("error executing query `%s`: %s", sql, err)
   end
 
-  if (multipleStatements:GetBool()) then
+  if (atomic._config.mysqlMultistatements) then
     atomic.mysql._database:setMultiStatements(true)
   end
 

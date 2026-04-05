@@ -91,7 +91,10 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
   end
 
   net.Start(netChannelName)
+  -- todo md5ing schemaName for get a little a few bytes
   net.WriteString(schemaName)
+  -- todo id is needed if only message will await for a response, right?
+  -- so we can make it optional (net.WriteBool(true) -> id is exists, false -> not exists) and win +-31 bytes
   net.WriteString(id)
 
   schema:writeNetPacket(data)
@@ -147,7 +150,7 @@ function atomic.network.receiver(len, player)
   local message = schema and schema:readNetPacket(player, messageId)
 
   if (not schema or not message) then
-    return logger:warn("an unknown net packet was received from `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
+    return logger:warn("an unknown net packet was received from `%s` with %sbits length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
   end
 
   local awaited = responseAwaiters[messageId]

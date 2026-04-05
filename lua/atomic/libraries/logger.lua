@@ -48,7 +48,31 @@ local levels = {
   ERR = 5,
 }
 
-local logvar = CreateConVar("atomic_log", "INFO", {FCVAR_ARCHIVE, FCVAR_PROTECTED}, "Minimum log level (TRACE/INFO/DEBUG/WARN/ERR)")
+local logLevelFile = "atomic/loglevel.dat"
+function atomic.logger.getCurrentLevel()
+  return atomic._config.logLevel or file.Read(logLevelFile) or "info"
+end
+
+--- `Internal` function, you `probably` shouldn't use it
+---@param levelName string
+---@return boolean
+function atomic.logger.isLevelExists(levelName)
+  return levels[levelName:upper()] ~= nil
+end
+
+--- `Internal` function, you shouldn't use it
+---@param level string
+function atomic.logger.updateLevel(level)
+  if (not atomic.logger.isLevelExists(level)) then
+    return false
+  end
+
+  atomic._config.logLevel = level
+
+  file.Write(logLevelFile, level)
+end
+
+atomic._config.logLevel = atomic.logger.getCurrentLevel()
 
 ---@param prefix string
 function Logger:init(prefix)
@@ -64,7 +88,7 @@ local MAX_LEVEL_LENGTH = 5
 ---@param message string
 ---@param ... any
 function Logger:log(color, level, message, ...)
-  local currentLevel = logvar:GetString():upper()
+  local currentLevel = atomic._config.logLevel:upper()
   local currentIdx = levels[currentLevel] or 1
   local msgIdx = levels[level] or 1
 

@@ -28,7 +28,7 @@ atomic.package.config = atomic.package.config or {}
 ---@field private _storage table<string, { type: ConfigurationContentType, value: any }>
 ---@field private _memorized table<string, Atomic.Package.Configuration.Raw>
 ---@field private _package { id: string, version: string }
----@field private _subscribedCallbacks table<string, fun(value: any)>
+---@field private _subscribedCallbacks table<string, fun(value: any): false?>
 local Configuration = atomic.class.create("Configuration")
 atomic.class.register(Configuration, atomic.class.pseudo)
 
@@ -162,7 +162,7 @@ end
 --- print(value) -- "This is value from databases"
 --- ```
 ---
----@param callback fun(value: any)
+---@param callback fun(value: any): false?
 ---@param key string
 function Configuration:subscribe(callback, key)
   local value = self:get(key)
@@ -191,11 +191,18 @@ function Configuration:set(key, value)
 
   sql.QueryTyped("UPDATE atomic_config SET value=? WHERE name=? AND package_id=? AND package_version=?", data, key, self._package.id, self._package.version)
 
-  entry.value = value
-
+  local isSuccessful = true
   local subscribedCallback = self._subscribedCallbacks[key]
 
   if (subscribedCallback) then
-    subscribedCallback(value)
+    local result = subscribedCallback(value)
+
+    if (result == false) then
+      isSuccessful = false
+    end
+  end
+
+  if (isSuccessful) then
+    entry.value = value
   end
 end

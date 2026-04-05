@@ -30,7 +30,9 @@ function atomic.package.new(metadata)
   return package
 end
 
-atomic.class.pseudo = atomic.package.new(atomic.class.pseudo._metadata)
+--- should be right after `atomic.package.new` definition!!!
+---@include
+atomic.loader.shared("atomic.lua")
 
 local isSuitable = atomic.semver.isSuitable
 
