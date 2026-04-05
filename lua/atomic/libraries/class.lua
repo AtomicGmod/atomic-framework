@@ -10,6 +10,7 @@ atomic.class = atomic.class or {
     _metadata = {
       id = "atomic",
       title = "Atomic Framework",
+      kind = "system",
       version = atomic.meta.version,
       documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
       icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png",
@@ -167,8 +168,7 @@ end
 
 --- Returns the parent class of instance
 ---@param class Atomic.Class
----@generic T: Atomic.Class
----@return T?
+---@return Atomic.Class?
 function atomic.class.getParent(class)
   local parent = getmetatable(getmetatable(class))
   return parent and parent.__index
@@ -189,9 +189,8 @@ end
 ---@vararg ...
 function atomic.class.super(instance, ...)
   local parent = atomic.class.getParent(instance)
-  ---@cast parent Atomic.Class
 
-  assert(istable(parent), "class hasn't parent")
+  assert(parent, "class has no parent")
   assert(isfunction(parent.init), "parent class has no init method")
 
   parent.init(instance, ...)

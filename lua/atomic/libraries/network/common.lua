@@ -25,7 +25,7 @@ atomic.network = atomic.network or {
   }
 }
 
-local netChannelName = "atomicframe:" .. atomic.meta.version
+local netChannelName = "atomic:" .. atomic.meta.version
 
 if (SERVER) then
 	util.AddNetworkString(netChannelName)
@@ -142,6 +142,7 @@ end
 function atomic.network.receiver(len, player)
   local schemaName = net.ReadString()
   local messageId = net.ReadString()
+
   local schema = schemas[schemaName]
   local message = schema and schema:readNetPacket(player, messageId)
 
