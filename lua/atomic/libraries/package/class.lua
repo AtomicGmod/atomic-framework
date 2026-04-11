@@ -9,7 +9,7 @@
 ---@field version string
 ---@field documentation? string
 ---@field homepageUrl? string
----@field configuration? table<string, Atomic.Package.Configuration.Raw>
+---@field configuration? table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
 ---@field files table<ScriptState, string[]>
 ---@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
 ---@field kind "system" | "library"
@@ -50,7 +50,7 @@ function Package:init(metadata)
   self._metadata.kind = self._metadata.kind or "library"
   self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
   self._version = version:toString() -- 1.0.0-alpha.1 (full version string)
-  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, self._version)
+  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, self)
   self.logger = atomic.logger.new(prefix)
 
   self:addRegistry()
@@ -144,7 +144,7 @@ end
 
 ---@private
 function Package:load()
-  local instant = Instant()
+  local instant = atomic.time.newInstant()
   local files = self._metadata.files
 
   if (not files) then

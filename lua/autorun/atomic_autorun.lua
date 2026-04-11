@@ -2,7 +2,7 @@ atomic = {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-alpha.1",
+    version = "1.0.0-alpha.2",
   },
   _config = {}
 }

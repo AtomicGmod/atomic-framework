@@ -27,7 +27,7 @@ atomic.package.config = atomic.package.config or {}
 ---@class Atomic.Package.Configuration: Atomic.Class
 ---@field private _storage table<string, { type: ConfigurationContentType, value: any }>
 ---@field private _memorized table<string, Atomic.Package.Configuration.Raw>
----@field private _package { id: string, version: string }
+---@field private _package Atomic.Package
 ---@field private _subscribedCallbacks table<string, fun(value: any): false?>
 local Configuration = atomic.class.create("Configuration")
 atomic.class.register(Configuration, atomic.class.pseudo)
@@ -86,14 +86,41 @@ local types = {
   }
 }
 
+---@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param package Atomic.Package
+---@return table<string, Atomic.Package.Configuration.Raw>
+local function flatConfig(configuration, package)
+  -- CLIENT == true -> flat(configuration["client"] + configuration["shared"])
+  -- SERVER == true -> flat(configuration)
+  local result = {}
+
+  if (CLIENT) then
+    configuration.server = nil
+  end
+
+  for _, config in pairs(configuration) do
+    for variable, data in pairs(config) do
+      if (result[variable]) then
+        atomic.log:warn("%s configuration variable `%s` for has been overridden due to a conflict", package, variable)
+      end
+
+      result[variable] = data
+    end
+  end
+
+  return result
+end
+
 local serverIp = CLIENT and game.GetIPAddress() or nil
 
----@param configuration table<string, Atomic.Package.Configuration.Raw>
----@param packageId string
----@param packageVer string
-function Configuration:init(configuration, packageId, packageVer)
+---@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param package Atomic.Package
+function Configuration:init(configuration, package)
+  configuration = flatConfig(configuration, package)
+
+  local packageId, packageVer = package:getId(), package:getVersionFullString()
   self._memorized = configuration
-  self._package = { id = packageId, version = packageVer }
+  self._package = package
   self._storage = {}
   self._subscribedCallbacks = {}
 
@@ -192,7 +219,7 @@ function Configuration:set(key, value)
 
   local data = handler.serialize(value)
 
-  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server=? AND name=? AND package_id=? AND package_version=?", data, serverIp, key, self._package.id, self._package.version)
+  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server=? AND name=? AND package_id=? AND package_version=?", data, serverIp, key, self._package:getId(), self._package:getVersionFullString())
 
   local isSuccessful = true
   local subscribedCallback = self._subscribedCallbacks[key]
