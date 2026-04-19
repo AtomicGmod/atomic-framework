@@ -78,9 +78,9 @@ end
 ---@param schemaName string
 ---@param data table<string, any>
 ---@param player? Player | table | Vector
----@param id? string Overrides message id
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast" Serverside only
----@return string Id of the message
+---@param id? string Overrides message id
+---@return string? Id of the message
 function atomic.network.send(schemaName, data, player, sendFunction, id)
   id = id or generateMessageId()
 
@@ -99,8 +99,13 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
 
   schema:writeNetPacket(data)
 
-  if (SERVER and player) then
-    net[sendFunction or "Send"](player)
+  if (SERVER) then
+    local sendFn = sendFunction or "Send"
+    local isOk, err = pcall(net[sendFn], player)
+
+    if (not isOk) then
+      return logger:err("failed to send message `%s` with net.%s(%s): %s", schemaName, sendFn, player or "", err)
+    end
   elseif (CLIENT) then
     net.SendToServer()
   end
@@ -115,11 +120,16 @@ local responseAwaiters = {}
 ---@param schemaName string
 ---@param data table<string, any>
 ---@param player? Player
----@return table | string
-function atomic.network.sendAsync(schemaName, data, player)
+---@param shouldIgnoreError? boolean
+---@return table | "timeout" | "err"
+function atomic.network.sendAsync(schemaName, data, player, shouldIgnoreError)
   local co = coroutine.get()
 
   local id = atomic.network.send(schemaName, data, player)
+
+  if (not id) then
+    return "err"
+  end
 
   local callback = function(message)
     coroutine.resume(co, message)
@@ -132,7 +142,9 @@ function atomic.network.sendAsync(schemaName, data, player)
     if (responseAwaiters[id] ~= nil) then
       responseAwaiters[id] = nil
 
-      atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
+      if (not shouldIgnoreError) then
+        atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
+      end
 
       coroutine.resume(co, "timeout")
     end

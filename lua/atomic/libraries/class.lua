@@ -14,15 +14,18 @@ atomic.class = atomic.class or {
 }
 
 ---@class Atomic.Class
----@field init fun(self: Atomic.Class, ...: any)?
+---@field private __index table
+---@field private init fun(self: Atomic.Class, ...: any)?
 ---@field private _classname string?
 local classMt = {}
 classMt.__index = classMt
 
+---@private
 function classMt:__tostring()
     return "Class " .. self:__classname()
 end
 
+---@private
 ---@return string
 function classMt:__classname()
   return tostring(self._classname)

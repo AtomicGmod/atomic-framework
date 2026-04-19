@@ -5,10 +5,15 @@ atomic.package = atomic.package or {
   _pathMap = {},
 }
 
+---@type Atomic.Package[]
+atomic.package._list = {}
+
 ---@include
 atomic.loader.shared("config.lua")
 atomic.loader.shared("registry.lua")
 atomic.loader.shared("class.lua")
+
+local packageList = atomic.package._list
 
 ---@type Atomic.Package
 local Package = atomic.class.get("Package")
@@ -25,9 +30,15 @@ function atomic.package.new(metadata)
     storage[id] = {}
   end
 
+  packageList[#packageList+1] = package
   storage[id][version] = package
 
   return package
+end
+
+--- Alias for `ipairs(atomic.package._list)`
+function atomic.package.list()
+  return ipairs(packageList)
 end
 
 --- should be right after `atomic.package.new` definition!!!
@@ -262,6 +273,7 @@ function atomic.package.loadMany(packages)
   end
 end
 
+-- todo push cache[path] in atomic.package.new
 local cache = {}
 local pathMap = atomic.package._pathMap
 

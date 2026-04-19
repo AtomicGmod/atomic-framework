@@ -2,7 +2,7 @@ atomic = {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-alpha.2",
+    version = "1.0.0-alpha.3",
   },
   _config = {}
 }
@@ -58,4 +58,4 @@ local packages = package.find("atomic/packages")
 
 package.loadMany(packages)
 
-atomic.log:info("Atomic Framework %s %s has been loaded for %sms (packages loaded for %sms)", atomic.meta.version, atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))
+atomic.log:info("Atomic Framework %s %s has been loaded for %sms (%s packages loaded for %sms)", atomic.meta.version, atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), #atomic.package._list, math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))

@@ -49,7 +49,7 @@ function Package:init(metadata)
   self._metadata = metadata
   self._metadata.kind = self._metadata.kind or "library"
   self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
-  self._version = version:toString() -- 1.0.0-alpha.1 (full version string)
+  self._version = version:getString() -- 1.0.0-alpha.1 (full version string)
   self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, self)
   self.logger = atomic.logger.new(prefix)
 
@@ -148,7 +148,7 @@ function Package:load()
   local files = self._metadata.files
 
   if (not files) then
-    return self.logger:warn("no files to include")
+    return self.logger:err("no files to include")
   end
 
   self:include("shared", files.shared)
@@ -156,7 +156,7 @@ function Package:load()
   self:include("client", files.client)
 
   self:enable()
-  self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._version, instant:elapsed():as_millis())
+  self.logger:trace("%s loaded successfully for %sms", self, instant:elapsed():as_millis())
 end
 
 ---@private
@@ -180,7 +180,7 @@ end
 ---@private
 function Package:unload()
   self:disable()
-  self.logger:trace("package `%s@%s` unloaded successfully", self._metadata.id, self._version)
+  self.logger:trace("%s unloaded successfully", self)
 end
 
 --- Enable/Disable
@@ -294,6 +294,46 @@ end
 ---@return "system" | "library"
 function Package:getKind()
   return self._metadata.kind or "system"
+end
+
+---@private
+function Package:getClientFiles()
+  return self._metadata.files.client or {}
+end
+
+---@private
+function Package:getSharedFiles()
+  return self._metadata.files.shared or {}
+end
+
+---@private
+function Package:getServerFiles()
+  return self._metadata.files.server or {}
+end
+
+---@return boolean
+function Package:isClientOnly()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+  local server = self:getServerFiles()
+
+  return #shared == 0 and #server == 0 and #client > 0
+end
+
+---@return boolean
+function Package:isServerOnly()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+
+  return #shared == 0 and #client == 0 and #shared > 0
+end
+
+function Package:isShared()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+  local server = self:getServerFiles()
+
+  return #shared > 0 or (#client > 0 and #server > 0)
 end
 
 --- ```lua
@@ -416,7 +456,7 @@ end
 
 --- Events
 
----@alias Atomic.Package.Events "onEnable" | "onEnabled" | "onDisable" | "onDisabled" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
+---@alias Atomic.Package.Events "onEnable" | "onEnabled" | "onDisable" | "onDisabled" | "onDatabaseConnected" | "CouldPlayerExecuteCommand" | "onAtomicPackageConfigChanged" | "onAtomicLoaded"
 
 function Package:formatUniversalId(eventName)
   return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, eventName)
@@ -516,7 +556,7 @@ end
 ---@param data table<string, any>
 ---@param player? Player | table | Vector
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
----@return string Message id
+---@return string? Message id
 function Package:sendNetworkMessage(name, data, player, sendFunction)
   ---@type Atomic.Network.Schema
   local schema = self._registry:lookup("netschemas", name)
@@ -534,11 +574,12 @@ end
 ---@param name string
 ---@param data table<string, any>
 ---@param player Player?
----@return Atomic.Network.Message | string
-function Package:sendNetworkMessageAsync(name, data, player)
+---@param shouldIgnoreError? boolean
+---@return Atomic.Network.Message | "timeout" | "err"
+function Package:sendNetworkMessageAsync(name, data, player, shouldIgnoreError)
   local schema = self._registry:lookup("netschemas", name)
 
-  return atomic.network.sendAsync(schema._name, data, player)
+  return atomic.network.sendAsync(schema._name, data, player, shouldIgnoreError)
 end
 
 --- Creates new webview and automatically registeres it
