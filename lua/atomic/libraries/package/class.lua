@@ -10,13 +10,14 @@
 ---@field documentation? string
 ---@field homepageUrl? string
 ---@field configuration? table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
----@field files table<ScriptState, string[]>
+---@field files { dir?: string, [ScriptState]: string[] }
 ---@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
 ---@field kind "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
 
 ---@alias PackageMeta Atomic.Package.Metadata
+---@alias Package Atomic.Package
 
 ---@class Atomic.Package.InternalMetadata: Atomic.Package.Metadata
 ---@field private version Atomic.SemanticVersion
@@ -156,10 +157,12 @@ function Package:load()
   self:include("client", files.client)
 
   self:enable()
-  self.logger:trace("%s loaded successfully for %sms", self, instant:elapsed():as_millis())
+  self.logger:debug("%s loaded successfully for %sms", self, instant:elapsed():as_millis())
 end
 
 ---@private
+---@param side ScriptState
+---@param files string[]
 function Package:include(side, files)
   if (not files) then
     return
@@ -168,19 +171,22 @@ function Package:include(side, files)
   local include = atomic.loader[side]
 
   if (not include) then
-    atomic.log:err("unknown include side `%s`", side)
-    return
+    return self.logger:err("unknown include side `%s`", side)
   end
 
+  local dir = self._metadata.files.dir
+  dir = dir and dir .. "/" or ""
+
   for _, filename in ipairs(files) do
-    include(self._metadata._path .. "/" .. filename)
+    filename = (filename:sub(-4) == ".lua" and filename or filename .. ".lua")
+    include(self._metadata._path .. "/" .. dir .. filename)
   end
 end
 
 ---@private
 function Package:unload()
   self:disable()
-  self.logger:trace("%s unloaded successfully", self)
+  self.logger:debug("%s unloaded successfully", self)
 end
 
 --- Enable/Disable
@@ -191,7 +197,7 @@ function Package:enable()
 
   self._registry:enable()
 
-  self._isEnabled = true
+  self:setEnabled(true)
 
   self:emitEvent("onEnabled")
 end
@@ -220,12 +226,16 @@ function Package:disable()
     self._state = {}
   end
 
-  self._isEnabled = false
-
+  self:setEnabled(false)
   self:emitEvent("onDisabled")
 end
 
 --- Metadata
+
+---@private
+function Package:setEnabled(boolean)
+  self._isEnabled = boolean
+end
 
 ---@return boolean
 function Package:isEnabled()

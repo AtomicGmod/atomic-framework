@@ -277,9 +277,15 @@ end
 local cache = {}
 local pathMap = atomic.package._pathMap
 
-function atomic.package.current()
-  -- 2 'cause 0 its lua engine, 1 its this function, and 2 is the caller
-  local info = debug.getinfo(2, "S")
+--- 0   Lua
+--- 1   Current function
+--- 2   Function caller
+--- (overhead)
+local baseStackIndex = 2
+
+---@param overhead? integer
+function atomic.package.current(overhead)
+  local info = debug.getinfo(2 + (overhead or 0), "S")
   if (not info) then
     return
   end

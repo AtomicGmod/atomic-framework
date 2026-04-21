@@ -20,9 +20,11 @@ atomic.class = atomic.class or {
 local classMt = {}
 classMt.__index = classMt
 
+---@alias Class Atomic.Class
+
 ---@private
 function classMt:__tostring()
-    return "Class " .. self:__classname()
+  return "Class " .. self:__classname()
 end
 
 ---@private
