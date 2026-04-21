@@ -3,14 +3,16 @@ return {
   id = "org.example.ping",
   title = "Ping",
   version = "1.0.0",
+  kind = "system",
   files = {
-    client = { "core/client.lua" },
-    shared = { "core/shared.lua" },
-    server = { "core/server.lua" }
+    dir = "core",
+    client = { "client" },
+    shared = { "shared" },
+    server = { "server" }
   },
   dependencies = {
     shared = {
-      atomic = "~0.8.0-rc.1"
+      atomic = "^1.0.0-alpha.1"
     }
   }
 }
