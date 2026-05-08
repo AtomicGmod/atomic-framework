@@ -62,6 +62,36 @@ function NaiveDateTime:getIso8601()
   return self:format("%Y-%m-%dT%H:%M:%S")
 end
 
+---@param year integer
+function NaiveDateTime:setYear(year)
+  self.year = year
+end
+
+---@param month integer
+function NaiveDateTime:setMonth(month)
+  self.month = math.Clamp(month, 1, 12)
+end
+
+---@param day integer
+function NaiveDateTime:setDay(day)
+  self.day = math.Clamp(day, 1, 31)
+end
+
+---@param hour integer
+function NaiveDateTime:setHour(hour)
+  self.hour = math.Clamp(hour, 0, 24)
+end
+
+---@param minute integer
+function NaiveDateTime:setMinute(minute)
+  self.minute = math.Clamp(minute, 0, 60)
+end
+
+---@param second integer
+function NaiveDateTime:setSecond(second)
+  self.second = math.Clamp(second, 0, 60)
+end
+
 ---@return integer
 function NaiveDateTime:getYear()
   return self.year
