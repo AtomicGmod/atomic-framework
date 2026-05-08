@@ -63,10 +63,6 @@ if (atomic._config.mysqlAutoconnect and not atomic.mysql._database) then
     logger:debug("error executing query `%s`: %s", sql, err)
   end
 
-  if (atomic._config.mysqlMultistatements) then
-    atomic.mysql._database:setMultiStatements(true)
-  end
-
   atomic.mysql._database:connect()
 end
 
@@ -87,6 +83,15 @@ end
 ---@return boolean
 function atomic.mysql.isConnected()
   return atomic.mysql._database and atomic.mysql._database:ping()
+end
+
+---@param state boolean
+function atomic.mysql.setMultistatements(state)
+  if (atomic.mysql._database:status() == mysqloo.DATABASE_CONNECTED) then
+    return logger:err("unable to set `multistatements` to `%s`: database already connected", state)
+  end
+
+  atomic.mysql._database:setMultiStatements(state)
 end
 
 --- Executes a query to the database, and escaping the arguments
@@ -144,6 +149,30 @@ function atomic.mysql.queryNotPrepared(query, ...)
   end
 
   prepared:start()
+
+  return coroutine.yield()
+end
+
+---@async
+---@vararg string
+function atomic.mysql.transaction(...)
+  local co = coroutine.get()
+
+  local transaction = atomic.mysql._database:createTransaction()
+  transaction.onError = function(_, err)
+    coroutine.resume(co, nil, err)
+  end
+
+  transaction.onSuccess = function(self, data)
+    coroutine.resume(co, data)
+  end
+
+  for _, querySql in ipairs({...}) do
+    local query = atomic.mysql._database:query(querySql)
+    transaction:addQuery(query)
+  end
+
+  transaction:start()
 
   return coroutine.yield()
 end
