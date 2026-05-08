@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/github/issues/TeamMeadows/atomic-framework.svg">
   <img src="https://img.shields.io/github/license/TeamMeadows/atomic-framework.svg">
 
-  [Download] | [Getting Started] | [Documentation]
+  [<kbd> <br> Download <br> </kbd>][Download] | [<kbd> <br> Getting Started <br> </kbd>][Getting Started] | [<kbd> <br> Documentation (DeepWiki) <br> </kbd>][Documentation]
 </div>
 
 [Download]: https://github.com/TeamMeadows/atomic-framework/releases/latest
