@@ -40,7 +40,6 @@ if (not sql.TableExists("atomic_config")) then
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server TEXT,
     package_id TEXT NOT NULL,
-    package_version TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
     value TEXT NOT NULL
   );]])
@@ -124,13 +123,13 @@ local serverIp = CLIENT and game.GetIPAddress() or nil
 function Configuration:init(configuration, package)
   local configuration, length = flatConfig(configuration, package)
 
-  local packageId, packageVer = package:getId(), package:getVersionFullString()
+  local packageId = package:getId()
   self._memorized = { length = length, configuration = configuration }
   self._package = package
   self._storage = {}
   self._subscribedCallbacks = {}
 
-  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE server" .. (serverIp and "=" or " IS ") .. "? AND package_id=? AND package_version=?", serverIp, packageId, packageVer)
+  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE server" .. (serverIp and "=" or " IS ") .. "? AND package_id=?", serverIp, packageId)
   ---@cast data { name: string, value: string }[]
 
   if (istable(data) and #data > 0) then
@@ -157,8 +156,6 @@ function Configuration:init(configuration, package)
     end
   end
 
-  -- todo после обновления версии atomic с 1.0.0-alpha.1 до 1.0.0-alpha.3 новые ячейки конфигурации не создались
-
   -- if the server has package version X installed and the developer decides
   -- to update the package to a new version that includes a new configuration parameter,
   -- that parameter will not be in the database and therefore cannot be
@@ -168,7 +165,7 @@ function Configuration:init(configuration, package)
     if (not self._storage[name]) then
       local handler = types[raw.type]
       local defaultValue = handler and handler.serialize(raw.default) or tostring(raw.default)
-      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(server, package_id, package_version, name, value) VALUES(?, ?, ?, ?, ?)", serverIp, packageId, packageVer, name, defaultValue)
+      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(server, package_id, name, value) VALUES(?, ?, ?, ?)", serverIp, packageId, name, defaultValue)
       self._storage[name] = { type = raw.type, value = raw.default, sync = raw.sync }
     end
   end
@@ -256,7 +253,7 @@ function Configuration:set(key, value)
 
   value = handler.deserialize(value)
 
-  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server" .. (serverIp and "=" or " IS ") .. "? AND name=? AND package_id=? AND package_version=?", handler.serialize(value), serverIp, key, self._package:getId(), self._package:getVersionFullString())
+  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server" .. (serverIp and "=" or " IS ") .. "? AND name=? AND package_id=?", handler.serialize(value), serverIp, key, self._package:getId())
 
   local isSuccessful = true
   local subscribedCallback = self._subscribedCallbacks[key]
