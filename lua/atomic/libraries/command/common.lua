@@ -1,4 +1,4 @@
-atomic.command = {
+atomic.command = atomic.command or {
 	logger = atomic.logger.new("command"),
 	---@type table<string, Atomic.Command>
 	_storage = {}

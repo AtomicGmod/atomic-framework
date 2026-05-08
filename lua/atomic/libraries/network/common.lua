@@ -6,7 +6,7 @@ atomic.network = atomic.network or {
     ---@type table<string, Atomic.Network.Schema>
     schemas = {}
   },
-  ---@alias Atomic.Network.Schema.Types "bool" | "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "u64" | "string" | "data" | "data_uncomp" | "entity" | "player" | "table"
+  ---@alias Atomic.Network.Schema.Types "bool" | "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "u64" | "float" | "string" | "data" | "data_uncomp" | "entity" | "player" | "table"
   _types = {
     bool = {net.ReadBool, net.WriteBool},
     i8 = {function() return net.ReadInt(8) end, function(n) net.WriteInt(n, 8) end},
@@ -16,6 +16,7 @@ atomic.network = atomic.network or {
     u16 = {function() return net.ReadUInt(16) end, function(n) net.WriteUInt(n, 16) end},
     u32 = {function() return net.ReadUInt(32) end, function(n) net.WriteUInt(n, 32) end},
     u64 = {net.ReadUInt64, net.WriteUInt64},
+    float = {net.ReadFloat, net.WriteFloat},
     string = {net.ReadString, net.WriteString},
     data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) local c = util.Compress(n) net.WriteUInt(#c, 32) net.WriteData(c) end},
     data_uncomp = {function() return net.ReadData(net.ReadUInt(32)) end, function(n) net.WriteUInt(#n, 32) net.WriteData(n) end},
@@ -25,8 +26,10 @@ atomic.network = atomic.network or {
   }
 }
 
+local netChannelName = "atomic:" .. atomic.meta.version
+
 if (SERVER) then
-	util.AddNetworkString("atomic.framework")
+	util.AddNetworkString(netChannelName)
 end
 
 ---@include
@@ -76,9 +79,9 @@ end
 ---@param schemaName string
 ---@param data table<string, any>
 ---@param player? Player | table | Vector
----@param id? string Overrides message id
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast" Serverside only
----@return string Id of the message
+---@param id? string Overrides message id
+---@return string? Id of the message
 function atomic.network.send(schemaName, data, player, sendFunction, id)
   id = id or generateMessageId()
 
@@ -88,14 +91,22 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
     error("network schema " .. tostring(schemaName) .. " not found")
   end
 
-  net.Start("atomic.framework")
+  net.Start(netChannelName)
+  -- todo md5ing schemaName for get a little a few bytes
   net.WriteString(schemaName)
+  -- todo id is needed if only message will await for a response, right?
+  -- so we can make it optional (net.WriteBool(true) -> id is exists, false -> not exists) and win +-31 bytes
   net.WriteString(id)
 
   schema:writeNetPacket(data)
 
-  if (SERVER and player) then
-    net[sendFunction or "Send"](player)
+  if (SERVER) then
+    local sendFn = sendFunction or "Send"
+    local isOk, err = pcall(net[sendFn], player)
+
+    if (not isOk) then
+      return logger:err("failed to send message `%s` with net.%s(%s): %s", schemaName, sendFn, player or "", err)
+    end
   elseif (CLIENT) then
     net.SendToServer()
   end
@@ -110,11 +121,16 @@ local responseAwaiters = {}
 ---@param schemaName string
 ---@param data table<string, any>
 ---@param player? Player
----@return table | string
-function atomic.network.sendAsync(schemaName, data, player)
+---@param shouldIgnoreError? boolean
+---@return table | "timeout" | "err"
+function atomic.network.sendAsync(schemaName, data, player, shouldIgnoreError)
   local co = coroutine.get()
 
   local id = atomic.network.send(schemaName, data, player)
+
+  if (not id) then
+    return "err"
+  end
 
   local callback = function(message)
     coroutine.resume(co, message)
@@ -124,9 +140,15 @@ function atomic.network.sendAsync(schemaName, data, player)
 
   -- timeout handler
   timer.Simple(5, function()
-    responseAwaiters[id] = nil
+    if (responseAwaiters[id] ~= nil) then
+      responseAwaiters[id] = nil
 
-    coroutine.resume(co, "timeout")
+      if (not shouldIgnoreError) then
+        atomic.network.logger:err("message `%s` (`%s`) did not receive a response!", schemaName, id)
+      end
+
+      coroutine.resume(co, "timeout")
+    end
   end)
 
   return coroutine.yield()
@@ -136,11 +158,12 @@ end
 function atomic.network.receiver(len, player)
   local schemaName = net.ReadString()
   local messageId = net.ReadString()
+
   local schema = schemas[schemaName]
   local message = schema and schema:readNetPacket(player, messageId)
 
   if (not schema or not message) then
-    return logger:warn("an unknown net packet was received from player `%s` with %s length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
+    return logger:warn("an unknown net packet was received from `%s` with %sbits length without a valid schema.", IsValid(player) and player:SteamID64() or "<console>", len)
   end
 
   local awaited = responseAwaiters[messageId]
@@ -148,10 +171,12 @@ function atomic.network.receiver(len, player)
   if (awaited) then
     if (awaited.sendedTo ~= nil and awaited.sendedTo ~= player) then
       return logger:warn(
-        "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`.",
+        "the awaited message `%s` was sent by player `%s`, but the response was received from player `%s`",
         messageId, awaited.sendedTo, player
       )
     end
+
+    responseAwaiters[messageId] = nil
 
     return awaited.callback(message)
   end
@@ -165,4 +190,4 @@ function atomic.network.receiver(len, player)
   listener(schema:getParentPackage(), message)
 end
 
-net.Receive("atomic.framework", atomic.network.receiver)
+net.Receive(netChannelName, atomic.network.receiver)

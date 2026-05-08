@@ -1,45 +1,82 @@
 ---@alias Atomic.Package.Registry.Callback fun(_: Atomic.Package, _: any, _: any)
 
 ---@class Atomic.Package.Registry: Atomic.Class
----@field private _storage table<string, { add: Atomic.Package.Registry.Callback, remove: Atomic.Package.Registry.Callback }>
+---@field private _package Atomic.Package
+---@field private _storage table<string, { add: Atomic.Package.Registry.Callback, remove: Atomic.Package.Registry.Callback, data: table }>
 local PackageRegistry = atomic.class.create("PackageRegistry")
 atomic.class.register(PackageRegistry, atomic.class.pseudo)
 
-function PackageRegistry:init()
+---@param package Atomic.Package
+function PackageRegistry:init(package)
+  self._package = package
   self._storage = {}
 end
 
 ---@param category string
 ---@param addFn Atomic.Package.Registry.Callback
 ---@param removeFn Atomic.Package.Registry.Callback
-function PackageRegistry:define(category, addFn, removeFn)
-  self._storage[category] = { add = addFn, remove = removeFn }
+function PackageRegistry:addCategory(category, addFn, removeFn)
+  self._storage[category] = { add = addFn, remove = removeFn, data = {} }
 end
 
 ---@param category string
----@param package Atomic.Package
 ---@param key string | integer
 ---@param value any
-function PackageRegistry:add(category, package, key, value)
-  local cat = self._storage[category]
+function PackageRegistry:set(category, key, value)
+  local category = self._storage[category]
 
-  if (not cat) then
+  if (not category) then
     return
   end
 
-  cat.add(package, key, value)
+  category.data[key] = value
+
+  local package = self._package
+
+  if (package:isEnabled()) then
+    local fn = value == nil and category.remove or category.add
+    fn(package, key, value)
+  end
 end
 
----@param category string
----@param package Atomic.Package
----@param key string | integer
----@param value any
-function PackageRegistry:remove(category, package, key, value)
-  local cat = self._storage[category]
+function PackageRegistry:enable()
+  local package = self._package
 
-  if (not cat) then
-    return
+  for _, category in pairs(self._storage) do
+    for key, value in pairs(category.data) do
+      category.add(package, key, value)
+    end
   end
+end
 
-  cat.remove(package, key, value)
+---@generic T
+---@param category string
+---@param index string | integer
+---@param default T?
+---@return T
+function PackageRegistry:lookup(category, index, default)
+  local category = self._storage[category]
+
+  return category and category.data[index] or default
+end
+
+--- Works only on arrays!
+---@return integer
+function PackageRegistry:length(category)
+  local category = self._storage[category]
+
+  return category and #category.data or 0
+end
+
+function PackageRegistry:disable()
+  local package = self._package
+
+  for _, category in pairs(self._storage) do
+    for key, value in pairs(category.data) do
+      category.remove(package, key, value)
+    end
+
+    -- there is no need to clean `category.data`, because after disable user could enable package
+    -- and the logic of it would be removed
+  end
 end

@@ -4,7 +4,7 @@ local NetworkMessage = atomic.class.get("NetworkMessage")
 ---@class Atomic.Network.Schema: Atomic.Class
 ---@field private _package Atomic.Package
 ---@field private _name string
----@field private _arguments table<"client" | "server", { fieldName: string, type: Atomic.Network.Schema.Types }[]>
+---@field private _arguments table<("client" | "server"), { fieldName: string, type: Atomic.Network.Schema.Types }[]>
 local NetworkSchema = atomic.class.create("NetworkSchema")
 atomic.class.register(NetworkSchema, atomic.class.pseudo)
 

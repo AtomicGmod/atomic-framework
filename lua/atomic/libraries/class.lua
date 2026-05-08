@@ -9,22 +9,25 @@ atomic.class = atomic.class or {
     _metadata = {
       id = "atomic",
       version = atomic.meta.version,
-      documentation = "https://github.com/TeamMeadows/atomic-framework/wiki",
-      icon = "https://github.com/TeamMeadows/atomic-framework/raw/production/assets/logo.png"
     }
   }
 }
 
 ---@class Atomic.Class
----@field init fun(self: Atomic.Class, ...: any)?
+---@field private __index table
+---@field private init fun(self: Atomic.Class, ...: any)?
 ---@field private _classname string?
 local classMt = {}
 classMt.__index = classMt
 
+---@alias Class Atomic.Class
+
+---@private
 function classMt:__tostring()
-    return "class " .. self:__classname()
+  return "Class " .. self:__classname()
 end
 
+---@private
 ---@return string
 function classMt:__classname()
   return tostring(self._classname)
@@ -39,7 +42,7 @@ function atomic.class.create(name, parent)
   local class = setmetatable({ _classname = name }, { __index = parent or classMt })
   class.__index = class
   class.__tostring = function(self)
-    return "instance of " .. tostring(self._classname)
+    return "Instance of " .. tostring(self._classname)
   end
 
   return class
@@ -70,7 +73,8 @@ function atomic.class.get(name, packageOrId, packageVersion)
       or type(packageVersion) == "string" and packageVersion
       or pkgName == "atomic" and atomic.meta.version
 
-  return ((atomic.class._storage[pkgName] or {})[pkgVersion] or {})[name]
+  ---@diagnostic disable-next-line
+  return ((atomic.class._storage[pkgName] or {})[istable(pkgVersion) and pkgVersion:getString() or pkgVersion] or {})[name]
 end
 
 --- Creates a new class instance
@@ -123,12 +127,19 @@ function atomic.class.accessors(class, ...)
   end
 end
 
+---@param version Atomic.SemanticVersion | string
+---@return string
+local versionToString = function(version)
+  ---@diagnostic disable-next-line
+  return isstring(version) and version or version:getString()
+end
+
 --- Registers the class in the storage, allowing it to be get via ``atomic.class.get``
 ---@param class Atomic.Class
 ---@param package Atomic.Package
 function atomic.class.register(class, package)
   local storage = atomic.class._storage
-  local id, version = package._metadata.id, package._metadata.version
+  local id, version = package._metadata.id, versionToString(package._metadata.version)
 
   if (type(storage[id]) ~= "table") then
     storage[id] = {}
@@ -143,11 +154,43 @@ function atomic.class.register(class, package)
   atomic.class._storage = storage
 end
 
+---@param class Atomic.Class
+---@param package Atomic.Package
 function atomic.class.unregister(class, package)
   local storage = atomic.class._storage
-  local id, version = package.id, package.version
+  local id, version = package._metadata.id, versionToString(package._metadata.version)
 
   storage[id][version][class._classname] = nil
 
   atomic.class._storage = storage
+end
+
+--- Returns the parent class of instance
+---@param class Atomic.Class
+---@return Atomic.Class?
+function atomic.class.getParent(class)
+  local parent = getmetatable(getmetatable(class))
+  return parent and parent.__index
+end
+
+--- Calls the `init` method in the parent class
+---
+--- # Example
+--- ```lua
+--- local Player = package:getClass("Player")
+--- local User = package:class("User", Player) -- creating new class `User` that inherits class `Player`
+---
+--- function User:init()
+---   super(self) -- calling Player:init() method
+--- end
+--- ```
+---@param instance Atomic.Class
+---@vararg ...
+function atomic.class.super(instance, ...)
+  local parent = atomic.class.getParent(instance)
+
+  assert(parent, "class has no parent")
+  assert(isfunction(parent.init), "parent class has no init method")
+
+  parent.init(instance, ...)
 end

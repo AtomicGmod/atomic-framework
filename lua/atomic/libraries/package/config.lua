@@ -23,20 +23,23 @@ atomic.package.config = atomic.package.config or {}
 ---@field default any
 ---@field type ConfigurationContentType
 ---@field description? string
+---@field sync? boolean @Default = true
+
+---@alias Atomic.Package.Configuration.InternalEntry { type: ConfigurationContentType, value: any, sync: boolean }
 
 ---@class Atomic.Package.Configuration: Atomic.Class
----@field private _storage table<string, { type: ConfigurationContentType, value: any }>
----@field private _memorized table<string, Atomic.Package.Configuration.Raw>
----@field private _package { id: string, version: string }
----@field private _subscribedCallbacks table<string, fun(value: any)>
+---@field private _storage table<string, Atomic.Package.Configuration.InternalEntry>
+---@field private _memorized { length: integer, configuration: table<string, Atomic.Package.Configuration.Raw> }
+---@field private _package Atomic.Package
+---@field private _subscribedCallbacks table<string, fun(value: any): false?>
 local Configuration = atomic.class.create("Configuration")
 atomic.class.register(Configuration, atomic.class.pseudo)
 
 if (not sql.TableExists("atomic_config")) then
   sql.Query([[CREATE TABLE IF NOT EXISTS atomic_config(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server TEXT,
     package_id TEXT NOT NULL,
-    package_version TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
     value TEXT NOT NULL
   );]])
@@ -60,7 +63,7 @@ local types = {
   },
   boolean = {
     is = isbool,
-    serialize = tobool,
+    serialize = tostring,
     deserialize = tobool
   },
   json = {
@@ -85,37 +88,70 @@ local types = {
   }
 }
 
----@param configuration table<string, Atomic.Package.Configuration.Raw>
----@param packageId string
----@param packageVer string
-function Configuration:init(configuration, packageId, packageVer)
-  self._memorized = configuration
-  self._package = { id = packageId, version = packageVer }
+---@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param package Atomic.Package
+---@return table<string, Atomic.Package.Configuration.Raw>, integer
+local function flatConfig(configuration, package)
+  -- CLIENT == true -> flat(configuration["client"] + configuration["shared"])
+  -- SERVER == true -> flat(configuration)
+  local result = {}
+  local length = 0
+
+  if (CLIENT) then
+    configuration.server = nil
+  end
+
+  for _, config in pairs(configuration) do
+    for variable, data in pairs(config) do
+      if (result[variable]) then
+        package.logger:warn("%s configuration variable `%s` for has been overridden due to a conflict", package, variable)
+      else
+        length = length + 1
+      end
+
+      result[variable] = data
+    end
+  end
+
+  return result, length
+end
+
+local serverIp = CLIENT and game.GetIPAddress() or nil
+
+---@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param package Atomic.Package
+function Configuration:init(configuration, package)
+  local configuration, length = flatConfig(configuration, package)
+
+  local packageId = package:getId()
+  self._memorized = { length = length, configuration = configuration }
+  self._package = package
   self._storage = {}
   self._subscribedCallbacks = {}
 
-  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=? AND package_version = ?", packageId, packageVer)
+  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE server" .. (serverIp and "=" or " IS ") .. "? AND package_id=?", serverIp, packageId)
   ---@cast data { name: string, value: string }[]
 
-  if (istable(data)) then
+  if (istable(data) and #data > 0) then
     for _, row in ipairs(data) do
       local raw = configuration[row.name]
 
       if (not raw) then
-        atomic.log:warn("package %s@%s - unknown configuration field `%s` with value `%s`", packageId, packageVer, tostring(row.name), tostring(row.value))
+        package.logger:warn("unknown configuration field `%s` with value `%s`", tostring(row.name), tostring(row.value))
         continue
       end
 
       local handler = types[raw.type]
 
       if (not handler) then
-        atomic.log:err("unknown config type '%s' for key '%s'", tostring(raw.type), row.name)
+        package.logger:err("unknown config variable type '%s' for key '%s'", tostring(raw.type), row.name)
         continue
       end
 
       self._storage[row.name] = {
         type = raw.type,
-        value = handler.deserialize(row.value)
+        value = handler.deserialize(row.value),
+        sync = raw.sync
       }
     end
   end
@@ -129,8 +165,8 @@ function Configuration:init(configuration, packageId, packageVer)
     if (not self._storage[name]) then
       local handler = types[raw.type]
       local defaultValue = handler and handler.serialize(raw.default) or tostring(raw.default)
-      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, package_version, name, value) VALUES(?, ?, ?, ?)", packageId, packageVer, name, defaultValue)
-      self._storage[name] = { type = raw.type, value = raw.default }
+      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(server, package_id, name, value) VALUES(?, ?, ?, ?)", serverIp, packageId, name, defaultValue)
+      self._storage[name] = { type = raw.type, value = raw.default, sync = raw.sync }
     end
   end
   sql.Commit()
@@ -144,11 +180,39 @@ end
 --- ```
 ---
 ---@param key string
----@generic T
----@return T?
+---@return any?
 function Configuration:get(key)
   local entry = self._storage[key]
-  return entry and entry.value or nil
+  return entry and entry.value
+end
+
+--- Returns default value of a field
+---
+--- ```lua
+--- local value = package:getConfiguration():getDefault("somePackageConfigurationField")
+--- print(value) -- "Change me"
+--- ```
+---
+---@param key string
+---@return any?
+function Configuration:getDefault(key)
+  local entry = self._memorized.configuration[key]
+  return entry and entry.default
+end
+
+---@param variable string
+---@return Atomic.Package.Configuration.InternalEntry?
+function Configuration:getEntry(variable)
+  return self._storage[variable]
+end
+
+function Configuration:getEntries()
+  return self._storage
+end
+
+---@return integer
+function Configuration:getEntriesCount()
+  return self._memorized.length
 end
 
 ---
@@ -162,12 +226,12 @@ end
 --- print(value) -- "This is value from databases"
 --- ```
 ---
----@param callback fun(value: any)
+---@param callback fun(value: any): false?
 ---@param key string
 function Configuration:subscribe(callback, key)
   local value = self:get(key)
 
-  if (value) then
+  if (value ~= nil) then
     callback(value)
   end
 
@@ -187,15 +251,24 @@ function Configuration:set(key, value)
     return atomic.log:err("unknown type '%s' on config:set(%s)\n\tcalled from %s", entry.type, key, debug.getcaller())
   end
 
-  local data = handler.serialize(value)
+  value = handler.deserialize(value)
 
-  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE name=? AND package_id=? AND package_version=?", data, key, self._package.id, self._package.version)
+  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server" .. (serverIp and "=" or " IS ") .. "? AND name=? AND package_id=?", handler.serialize(value), serverIp, key, self._package:getId())
 
-  entry.value = value
-
-  local subscribedCallback = self._subscribedCallbacks[value]
+  local isSuccessful = true
+  local subscribedCallback = self._subscribedCallbacks[key]
 
   if (subscribedCallback) then
-    subscribedCallback(value)
+    local result = subscribedCallback(value)
+
+    if (result == false) then
+      isSuccessful = false
+    end
+  end
+
+  if (isSuccessful) then
+    entry.value = value
+
+    hook.Run("onAtomicPackageConfigChanged", self._package, key, entry)
   end
 end

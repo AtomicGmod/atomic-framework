@@ -1,23 +1,35 @@
+---@alias ScriptState "client" | "shared" | "server"
+
+---@alias Atomic.Package.Metadata.Dependency string | { optional: true, version: string }
+
 ---@class Atomic.Package.Metadata
 ---@field id string
 ---@field title string
 ---@field description? string
 ---@field version string
 ---@field documentation? string
----@field configuration? table<string, Atomic.Package.Configuration.Raw>
----@field files table<"client" | "shared" | "server", string[]>
----@field dependencies? table<"client" | "shared" | "server", table<"atomic" | string, string>>
----@field kind? "system" | "library"
+---@field homepageUrl? string
+---@field configuration? table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@field files { dir?: string, [ScriptState]: string[] }
+---@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
+---@field kind "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
----@field private _path string? `Internal` field
+
+---@alias PackageMeta Atomic.Package.Metadata
+---@alias Package Atomic.Package
+
+---@class Atomic.Package.InternalMetadata: Atomic.Package.Metadata
+---@field private version Atomic.SemanticVersion
+---@field private _path string?
 
 ---@class Atomic.Package: Atomic.Class
+---@field private _coreVersion string
+---@field private _version string
 ---@field private _state? table<string, any>
----@field private _metadata Atomic.Package.Metadata
+---@field private _metadata Atomic.Package.InternalMetadata
 ---@field private _registry? Atomic.Package.Registry
----@field private _data? table<string, table>
--- @field private _configuration Atomic.Package.Configuration
+---@field private _configuration Atomic.Package.Configuration
 ---@field private _isEnabled boolean?
 ---@field logger Atomic.Logger
 local Package = atomic.class.create("Package")
@@ -28,14 +40,18 @@ local Configuration = atomic.class.get("Configuration")
 ---@type Atomic.Package.Registry
 local PackageRegistry = atomic.class.get("PackageRegistry")
 
----@param metadata Atomic.Package.Metadata
+---@param metadata Atomic.Package.InternalMetadata
 function Package:init(metadata)
   local splittedId = metadata.id:Split(".")
   local prefix = (splittedId[#splittedId] or metadata.id):lower()
+  local version = metadata.version
 
   self._isEnabled = false
   self._metadata = metadata
-  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, metadata.id, metadata.version)
+  self._metadata.kind = self._metadata.kind or "library"
+  self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
+  self._version = version:getString() -- 1.0.0-alpha.1 (full version string)
+  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, self)
   self.logger = atomic.logger.new(prefix)
 
   self:addRegistry()
@@ -43,57 +59,57 @@ function Package:init(metadata)
 end
 
 ---@private
-function Package:addRegistry()
-  self._registry = atomic.class.new(PackageRegistry)
-  self._data = {
-    classes = {}
-  }
+function Package:__tostring()
+  return "Package [" .. tostring(self:getId()) ..  "][" .. tostring(self:getVersionFullString()) .. "]"
+end
 
-  self._registry:define("classes",
+---@alias Atomic.Package.RegistryCategories "events" | "binds" | "classes" | "commands" | "netschemas" | "netlisteners" | "webviews"
+---@type table<Atomic.Package.RegistryCategories, {[1]: fun(Atomic.Package, any, any), [2]: fun(Atomic.Package, any, any)}>
+local systemRegistry = {
+  events = {
+    function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), function(...) return listener(self, ...) end) end,
+    function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
+  },
+  binds = {
+    function(_, _, data)
+      local regId = atomic.bind.bind(data.key, data.callback)
+      data.registrationId = regId
+    end,
+    function(_, _, data) atomic.bind.unbind(data.registrationId) end
+  },
+  commands = {
+    function(_, name, command) atomic.command.add(name, command) end,
+    function(_, name) atomic.command.remove(name) end
+  },
+  netschemas = {
+    function(_, _, schema) atomic.network.register(schema) end,
+    function(_, _, schema) atomic.network.unregister(schema._name) end
+  },
+  netlisteners = {
+    function(self, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
+    function(self, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
+  },
+  webviews = {
+    function(self, _, webview) atomic.webview.register(webview, self) end,
+    function(self, name) atomic.webview.unregister(name, self) end
+  }
+}
+
+---@private
+function Package:addRegistry()
+  self._registry = atomic.class.new(PackageRegistry, self)
+
+  self._registry:addCategory("classes",
     function(self, _, class) atomic.class.register(class, self) end,
     function(self, className) atomic.class.unregister(className, self) end
   )
 
-  if (self._metadata.kind ~= "library") then
+  if (self:isSystem()) then
     self._state = {}
-    self._data["events"] = {}
-    self._data["commands"] = {}
-    self._data["binds"] = {}
-    self._data["netschemas"] = {}
-    self._data["netlisteners"] = {}
-    self._data["webviews"] = {}
-    self._registry:define("events",
-      function(self, eventId, listener) hook.Add(eventId, self:formatUniversalId(eventId), function(...) return listener(self, ...) end) end,
-      function(self, eventId) hook.Remove(eventId, self:formatUniversalId(eventId)) end
-    )
 
-    self._registry:define("binds",
-      function(_, _, data)
-        local regId = atomic.bind.bind(data.key, data.callback)
-        data.registrationId = regId
-      end,
-      function(_, _, data) atomic.bind.unbind(data.registrationId) end
-    )
-
-    self._registry:define("commands",
-      function(_, name, command) atomic.command.add(name, command) end,
-      function(_, name) atomic.command.remove(name) end
-    )
-
-    self._registry:define("netschemas",
-      function(_, _, schema) atomic.network.register(schema) end,
-      function(_, _, schema) atomic.network.unregister(schema._name) end
-    )
-
-    self._registry:define("netlisteners",
-      function(_, schemaName, schema) atomic.network.listen(self:formatUniversalId(schemaName), schema) end,
-      function(_, schemaName) atomic.network.unlisten(self:formatUniversalId(schemaName)) end
-    )
-
-    self._registry:define("webviews",
-      function(_, _, webview) atomic.webview.register(webview, self) end,
-      function(_, name) atomic.webview.unregister(name, self) end
-    )
+    for name, tab in pairs(systemRegistry) do
+      self._registry:addCategory(name, tab[1], tab[2])
+    end
   end
 end
 
@@ -113,41 +129,27 @@ function Package:addLanguageFromMetadata()
 end
 
 ---@private
----@param category "events" | "binds" | "classes"| "commands" | "netschemas" | "netlisteners" | "webviews"
+---@param category Atomic.Package.RegistryCategories
 ---@param index string | integer
 ---@param value any
 function Package:register(category, index, value)
-  self._data[category][index] = value
-
-  if (self._isEnabled) then
-    self._registry:add(category, self, index, value)
-  end
+  self._registry:set(category, index, value)
 end
 
 ---@private
----@param category string
+---@param category Atomic.Package.RegistryCategories
 ---@param index string | integer
 function Package:unregister(category, index)
-  local value = self._data[category][index]
-
-  if (not value) then
-    return
-  end
-
-  if (self._isEnabled) then
-    self._registry:remove(category, self, index, value)
-  end
-
-  self._data[category][index] = nil
+  self._registry:set(category, index)
 end
 
 ---@private
 function Package:load()
-  local instant = Instant()
+  local instant = atomic.time.newInstant()
   local files = self._metadata.files
 
   if (not files) then
-    return self.logger:warn("no files to include")
+    return self.logger:err("no files to include")
   end
 
   self:include("shared", files.shared)
@@ -155,10 +157,12 @@ function Package:load()
   self:include("client", files.client)
 
   self:enable()
-  self.logger:trace("package `%s@%s` loaded successfully for %sms", self._metadata.id, self._metadata.version, instant:elapsed():as_millis())
+  self.logger:debug("%s loaded successfully for %sms", self, instant:elapsed():as_millis())
 end
 
 ---@private
+---@param side ScriptState
+---@param files string[]
 function Package:include(side, files)
   if (not files) then
     return
@@ -167,19 +171,22 @@ function Package:include(side, files)
   local include = atomic.loader[side]
 
   if (not include) then
-    atomic.log:err("unknown include side `%s`", side)
-    return
+    return self.logger:err("unknown include side `%s`", side)
   end
 
+  local dir = self._metadata.files.dir
+  dir = dir and dir .. "/" or ""
+
   for _, filename in ipairs(files) do
-    include(self._metadata._path .. "/" .. filename)
+    filename = (filename:sub(-4) == ".lua" and filename or filename .. ".lua")
+    include(self._metadata._path .. "/" .. dir .. filename)
   end
 end
 
 ---@private
 function Package:unload()
   self:disable()
-  self.logger:trace("package `%s@%s` unloaded successfully", self._metadata.id, self._metadata.version)
+  self.logger:debug("%s unloaded successfully", self)
 end
 
 --- Enable/Disable
@@ -188,15 +195,11 @@ end
 function Package:enable()
   self:emitEvent("onEnable")
 
-  if (self._data) then
-    for category, entries in pairs(self._data) do
-      for index, entry in pairs(entries) do
-        self._registry:add(category, self, index, entry)
-      end
-    end
-  end
+  self._registry:enable()
 
-  self._isEnabled = true
+  self:setEnabled(true)
+
+  self:emitEvent("onEnabled")
 end
 
 local removePhrase = atomic.i18n.removePhrase
@@ -205,16 +208,11 @@ local removePhrase = atomic.i18n.removePhrase
 function Package:disable()
   self:emitEvent("onDisable")
 
-  if (self._data) then
-    for category, entries in pairs(self._data) do
-      for index, entry in pairs(entries) do
-        self._registry:remove(category, self, index, entry)
-      end
-    end
-  end
+  self._registry:disable()
 
   local localization = self._metadata.language
 
+  -- todo why its is not in registry?
   if (localization) then
     for language, tab in pairs(localization) do
       for phraseId in pairs(tab) do
@@ -228,10 +226,16 @@ function Package:disable()
     self._state = {}
   end
 
-  self._isEnabled = true
+  self:setEnabled(false)
+  self:emitEvent("onDisabled")
 end
 
 --- Metadata
+
+---@private
+function Package:setEnabled(boolean)
+  self._isEnabled = boolean
+end
 
 ---@return boolean
 function Package:isEnabled()
@@ -243,9 +247,23 @@ function Package:getId()
   return self._metadata.id
 end
 
+--- Example: 1.0.0
 ---@return string
+function Package:getVersionString()
+  return self._coreVersion
+end
+
+--- Example: 1.0.0-rc.1+build.18
+---@return string
+function Package:getVersionFullString()
+  return self._version
+end
+
+---@return Atomic.SemanticVersion
 function Package:getVersion()
-  return self._metadata.version
+  local version = self._metadata.version
+  ---@cast version Atomic.SemanticVersion
+  return version
 end
 
 ---@return string
@@ -256,6 +274,11 @@ end
 ---@return string?
 function Package:getDocumentation()
   return self._metadata.documentation
+end
+
+---@return string?
+function Package:getHomepageUrl()
+  return self._metadata.homepageUrl
 end
 
 ---@return string?
@@ -283,6 +306,46 @@ function Package:getKind()
   return self._metadata.kind or "system"
 end
 
+---@private
+function Package:getClientFiles()
+  return self._metadata.files.client or {}
+end
+
+---@private
+function Package:getSharedFiles()
+  return self._metadata.files.shared or {}
+end
+
+---@private
+function Package:getServerFiles()
+  return self._metadata.files.server or {}
+end
+
+---@return boolean
+function Package:isClientOnly()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+  local server = self:getServerFiles()
+
+  return #shared == 0 and #server == 0 and #client > 0
+end
+
+---@return boolean
+function Package:isServerOnly()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+
+  return #shared == 0 and #client == 0 and #shared > 0
+end
+
+function Package:isShared()
+  local client = self:getClientFiles()
+  local shared = self:getSharedFiles()
+  local server = self:getServerFiles()
+
+  return #shared > 0 or (#client > 0 and #server > 0)
+end
+
 --- ```lua
 --- local config = package:getConfiguration()
 --- assert(config:get("someKey"), "hello, world")
@@ -292,26 +355,28 @@ function Package:getConfiguration()
   return self._configuration
 end
 
+---@protected
+---@param state ScriptState
 ---@param id string
----@return Atomic.Package?
+---@return string?
+function Package:getDependencyVersionByState(state, id)
+  local dependencies = self._metadata.dependencies
+  local stateDependencies = dependencies and dependencies[state]
+  local depVersionData = stateDependencies and stateDependencies[id]
+
+  ---@diagnostic disable-next-line
+  return istable(depVersionData) and depVersionData.version or depVersionData
+end
+
+---@param id string
+---@generic T: Atomic.Package
+---@return T?
 function Package:getDependency(id)
-  local dependecies = self._metadata.dependencies
-
-  if (not dependecies) then
-    return
-  end
-
-  local stateDeps = dependecies[SERVER and "server" or "client"]
-
-  local version = stateDeps and stateDeps[id]
+  local version = self:getDependencyVersionByState(SERVER and "server" or "client", id)
+    or self:getDependencyVersionByState("shared", id)
 
   if (not version) then
-    local sharedDeps = dependecies.shared
-    version = sharedDeps and sharedDeps[id]
-
-    if (not version) then
-      return self.logger:err("dependency `%s` is not specified in package.lua!", id)
-    end
+    return self.logger:err("dependency `%s` is not specified in package.lua!", id)
   end
 
   return atomic.package.get(id, version)
@@ -360,7 +425,7 @@ end
 ---@param key number
 ---@return integer registrationId
 function Package:bind(callback, key)
-  local id = #self._data.binds+1
+  local id = self._registry:length("binds") + 1
 
   self:register("binds", id, {
     key = key,
@@ -402,11 +467,10 @@ end
 
 --- Events
 
----@alias Atomic.Package.Events "onEnable" | "onDisable" | "onDatabaseConnected" | "CouldPlayerExecuteCommand"
+---@alias Atomic.Package.Events "onEnable" | "onEnabled" | "onDisable" | "onDisabled" | "onDatabaseConnected" | "CouldPlayerExecuteCommand" | "onAtomicPackageConfigChanged" | "onAtomicLoaded"
 
----@private
 function Package:formatUniversalId(eventName)
-  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._metadata.version, eventName)
+  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, eventName)
 end
 
 --- Adds an event for listening
@@ -446,11 +510,7 @@ end
 ---@param name Atomic.Package.Events
 ---@vararg any
 function Package:emitEvent(name, ...)
-  if (not self._data.events) then
-    return
-  end
-
-  local listener = self._data.events[name]
+  local listener = self._registry:lookup("events", name)
 
   if (not listener) then
     return
@@ -464,8 +524,8 @@ end
 --- Creates new class and automatically registeres it
 ---@param name string
 ---@param parent? Atomic.Class
----@generic T
----@return T: Atomic.Class
+---@generic T: Atomic.Class
+---@return T
 function Package:class(name, parent)
   local class = atomic.class.create(name, parent)
 
@@ -477,7 +537,7 @@ end
 --- Return package's registered class
 ---@param name string
 function Package:getClass(name)
-  return self._data.classes[name]
+  return self._registry:lookup("classes", name)
 end
 
 --- Network
@@ -507,9 +567,10 @@ end
 ---@param data table<string, any>
 ---@param player? Player | table | Vector
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
----@return string Message id
+---@return string? Message id
 function Package:sendNetworkMessage(name, data, player, sendFunction)
-  local schema = self._data.netschemas[name]
+  ---@type Atomic.Network.Schema
+  local schema = self._registry:lookup("netschemas", name)
 
   return atomic.network.send(schema._name, data, player, sendFunction)
 end
@@ -517,18 +578,19 @@ end
 ---@param name string
 ---@param data table<string, any>
 function Package:broadcastNetworkMessage(name, data)
-  self:sendNetworkMessage(name, data, player.GetHumans(), "Broadcast")
+  self:sendNetworkMessage(name, data, nil, "Broadcast")
 end
 
 ---@async
 ---@param name string
 ---@param data table<string, any>
 ---@param player Player?
----@return Atomic.Network.Message | string
-function Package:sendNetworkMessageAsync(name, data, player)
-  local schema = self._data.netschemas[name]
+---@param shouldIgnoreError? boolean
+---@return Atomic.Network.Message | "timeout" | "err"
+function Package:sendNetworkMessageAsync(name, data, player, shouldIgnoreError)
+  local schema = self._registry:lookup("netschemas", name)
 
-  return atomic.network.sendAsync(schema._name, data, player)
+  return atomic.network.sendAsync(schema._name, data, player, shouldIgnoreError)
 end
 
 --- Creates new webview and automatically registeres it
@@ -536,7 +598,7 @@ end
 ---@param autoSpawn? boolean = true
 ---@return Atomic.WebView
 function Package:webview(name, autoSpawn)
-  local folder = self._metadata.id .. "@" .. self._metadata.version
+  local folder = self._metadata.id .. "@" .. self._version
   local path = "asset://garrysmod/resource/webviews/" .. folder
 
   local webview = atomic.webview.new(name, path, autoSpawn)
@@ -550,5 +612,5 @@ end
 ---@param name string
 ---@return Atomic.WebView
 function Package:getWebview(name)
-  return self._data.webviews[name]
+  return self._registry:lookup("webviews", name)
 end

@@ -1,5 +1,5 @@
 if (not util.IsBinaryModuleInstalled("mysqloo")) then
-	return
+  return atomic.log:trace("mysqloo is not installed")
 end
 
 if (not mysqloo) then
@@ -15,16 +15,17 @@ local logger = atomic.mysql.logger
 file.CreateDir("atomic/mysql")
 
 if (file.Size("data/atomic/mysql/credentials.json", "GAME") <= 0) then
-  local defaultJson = [[{
-    "host": "127.0.0.1",
-    "user": "root",
-    "password": "root",
-    "table": "gmod",
-    "port": 3306
-}]];
+  local defaultCredentials = {
+    host = "127.0.0.1",
+    user = "root",
+    password = "root",
+    table = "gmod",
+    port = 3306
+  }
 
-  file.Write("atomic/mysql/credentials.json", defaultJson)
-	logger:warn("the `credentials.json` file has just been created in `data/atomic/mysql/` folder. to work with MySQL, fill in the database connection credentials in this file.")
+  file.Write("atomic/mysql/credentials.json", util.TableToJSON(defaultCredentials, true))
+
+	logger:info("the `credentials.json` file has just been created in `data/atomic/mysql/` folder. to work with MySQL, fill in the database connection credentials in this file.")
 end
 
 ---@class Atomic.MySQL.Credentials
@@ -34,10 +35,8 @@ end
 ---@field table string
 ---@field port? integer
 local credentials = util.JSONToTable(file.Read("atomic/mysql/credentials.json"))
-local autoconnect = CreateConVar("atomic_mysql_autoconnect", "1", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL be automatic?")
-local multipleStatements = CreateConVar("atomic_mysql_multistatements", "0", {FCVAR_PROTECTED, FCVAR_ARCHIVE}, "Should the connection to MySQL have multi statements enabled?")
 
-if (autoconnect:GetBool() and not atomic.mysql._database) then
+if (atomic._config.mysqlAutoconnect and not atomic.mysql._database) then
   atomic.mysql._database = mysqloo.connect(
     credentials.host,
     credentials.user,
@@ -64,10 +63,6 @@ if (autoconnect:GetBool() and not atomic.mysql._database) then
     logger:debug("error executing query `%s`: %s", sql, err)
   end
 
-  if (multipleStatements:GetBool()) then
-    atomic.mysql._database:setMultiStatements(true)
-  end
-
   atomic.mysql._database:connect()
 end
 
@@ -88,6 +83,15 @@ end
 ---@return boolean
 function atomic.mysql.isConnected()
   return atomic.mysql._database and atomic.mysql._database:ping()
+end
+
+---@param state boolean
+function atomic.mysql.setMultistatements(state)
+  if (atomic.mysql._database:status() == mysqloo.DATABASE_CONNECTED) then
+    return logger:err("unable to set `multistatements` to `%s`: database already connected", state)
+  end
+
+  atomic.mysql._database:setMultiStatements(state)
 end
 
 --- Executes a query to the database, and escaping the arguments
@@ -145,6 +149,30 @@ function atomic.mysql.queryNotPrepared(query, ...)
   end
 
   prepared:start()
+
+  return coroutine.yield()
+end
+
+---@async
+---@vararg string
+function atomic.mysql.transaction(...)
+  local co = coroutine.get()
+
+  local transaction = atomic.mysql._database:createTransaction()
+  transaction.onError = function(_, err)
+    coroutine.resume(co, nil, err)
+  end
+
+  transaction.onSuccess = function(self, data)
+    coroutine.resume(co, data)
+  end
+
+  for _, querySql in ipairs({...}) do
+    local query = atomic.mysql._database:query(querySql)
+    transaction:addQuery(query)
+  end
+
+  transaction:start()
 
   return coroutine.yield()
 end

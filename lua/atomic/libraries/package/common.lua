@@ -5,33 +5,47 @@ atomic.package = atomic.package or {
   _pathMap = {},
 }
 
+---@type Atomic.Package[]
+atomic.package._list = {}
+
 ---@include
 atomic.loader.shared("config.lua")
 atomic.loader.shared("registry.lua")
 atomic.loader.shared("class.lua")
 
+local packageList = atomic.package._list
+
 ---@type Atomic.Package
-local packageClass = atomic.class.get("Package")
+local Package = atomic.class.get("Package")
 
 ---@private
----@param metadata Atomic.Package.Metadata
+---@param metadata Atomic.Package.InternalMetadata
 ---@return Atomic.Package
 function atomic.package.new(metadata)
-  local package = atomic.class.new(packageClass, metadata)
-  ---@cast package Atomic.Package
-  local id, version = metadata.id, metadata.version
+  local package = atomic.class.new(Package, metadata)
+  local id, version = metadata.id, metadata.version:getString()
   local storage = atomic.package._storage
 
   if (not storage[id]) then
     storage[id] = {}
   end
 
+  packageList[#packageList+1] = package
   storage[id][version] = package
 
   return package
 end
 
-atomic.class.pseudo = atomic.package.new(atomic.class.pseudo._metadata)
+--- Alias for `ipairs(atomic.package._list)`
+function atomic.package.list()
+  return ipairs(packageList)
+end
+
+--- should be right after `atomic.package.new` definition!!!
+---@include
+atomic.loader.shared("atomic.lua")
+
+local isSuitable = atomic.semver.isSuitable
 
 ---@param id string
 ---@param version string
@@ -42,12 +56,15 @@ function atomic.package.get(id, version)
     return
   end
 
-  for ver, package in pairs(packages) do
-    if (util.IsVersionSuitable(ver, version)) then
+  for _, package in pairs(packages) do
+    if (isSuitable(package:getVersion(), version)) then
       return package
     end
   end
 end
+
+---@type Atomic.SemanticVersion
+local SemanticVersion = atomic.class.get("SemanticVersion")
 
 --- Reads metadata from `package.lua`, and returns it, making `package.lua` visible on client
 ---
@@ -57,24 +74,26 @@ end
 --- ```
 ---
 ---@param path string
----@return Atomic.Package.Metadata?
+---@return Atomic.Package.InternalMetadata?
 function atomic.package.readPackageMetadata(path)
   if (not file.Exists(path, "LUA")) then
     return nil
   end
 
   local metadata = SERVER and atomic.loader.server(path) or atomic.loader.client(path)
-  ---@cast metadata Atomic.Package.Metadata
+  ---@cast metadata Atomic.Package.InternalMetadata
 
   if (type(metadata) ~= "table") then
     return nil
   end
 
   metadata._path = path:GetPathFromFilename():sub(1, -2) -- removing last "/" from string
+  metadata.version = atomic.class.new(SemanticVersion, metadata.version)
 
   if (SERVER) then
     local files = metadata.files
 
+    -- why its here??
     -- make server-only packages hidden from clients
     if (type(files) == "table" and type(files.client) == "table" or type(files.shared) == "table") then
       atomic.loader.csluafile(path)
@@ -93,7 +112,7 @@ end
 --- table.debug(packages)
 --- ```
 ---@param path string
----@return Atomic.Package.Metadata[]?
+---@return Atomic.Package.InternalMetadata[]?
 function atomic.package.find(path)
   local packageMeta = atomic.package.readPackageMetadata(path .. "/package.lua")
 
@@ -116,26 +135,25 @@ function atomic.package.find(path)
 end
 
 --- Loades an package
----@param metadata Atomic.Package.Metadata
+---@param metadata Atomic.Package.InternalMetadata
 function atomic.package.load(metadata)
-  if type(metadata) ~= "table" or not metadata.id or not metadata.version or not metadata._path then
-    atomic.log:warn("package %s@%s have is invalid!", metadata.id or metadata._path or "N/A (see TRACE logs)", metadata.version or "N/A")
-    return
+  local id, version, path = metadata.id, metadata.version:getString(), metadata._path
+
+  if (type(metadata) ~= "table" or not id or not version or not path) then
+    return atomic.log:warn("package %s@%s have is invalid!", id or path or "N/A (see TRACE logs)", version or "N/A")
   end
 
-  if (atomic.package.get(metadata.id, metadata.version)) then
-    return atomic.log:trace("package %s@%s is already loaded", metadata.id, metadata.version)
+  if ((atomic.package._storage[id] or {})[version]) then
+    return atomic.log:trace("package %s@%s is already loaded", id, version)
   end
 
   local isOk, package = pcall(atomic.package.new, metadata)
 
   if (not isOk) then
-    return atomic.log:err("package %s@%s failed to load: %s", metadata.id, metadata.version, package)
+    return atomic.log:err("package %s@%s failed to load: %s", id, version, package)
   end
 
-  local id, version = metadata.id, metadata.version
-
-  atomic.package._pathMap[metadata._path] = { id, version }
+  atomic.package._pathMap[path] = { id, version }
 
   -- dependencies check
   local deps = metadata.dependencies
@@ -144,41 +162,43 @@ function atomic.package.load(metadata)
 
     -- dirty hack
     for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersion in pairs(depTable) do
+      for depId, depVersionData in pairs(depTable) do
+        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+        ---@cast depVersion string
         local dep = atomic.package.get(depId, depVersion)
-        if (not dep) then
+
+        if (not dep and not isDependencyOptional) then
           return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
         end
       end
     end
   end
 
-  local isOk, err = pcall(function()
-    package:load()
-  end)
+  local isOk, err = pcall(package.load, package)
 
   if (not isOk) then
     atomic.log:err("failed to load package `%s@%s`: %s", id, version, err)
   end
 end
 
----@param packages Atomic.Package.Metadata[]?
+---@param packages Atomic.Package.InternalMetadata[]?
 function atomic.package.loadMany(packages)
   if (type(packages) ~= "table" or #packages == 0) then
-    atomic.log:warn("no packages to load")
-    return
+    return atomic.log:warn("no packages to load")
   end
 
   local loadingSort = {}
   local visited = {}
 
+  ---@param package Atomic.Package.InternalMetadata
   local getKey = function(package)
-    return package.id .. "@" .. package.version
+    return package.id .. "@" .. package.version:getString()
   end
 
   local findDependency = function(depId, depVersion)
     for _, package in ipairs(packages) do
-      if package.id == depId and util.IsVersionSuitable(depVersion, package.version) then
+      if (package.id == depId and isSuitable(package.version, depVersion)) then
         return package
       end
     end
@@ -192,15 +212,16 @@ function atomic.package.loadMany(packages)
   end
 
   local visit
+  ---@param package Atomic.Package.InternalMetadata
   visit = function(package)
     local key = getKey(package)
 
-    if visited[key] == "temp" then
-      atomic.log:err("dependency cycle detected on %s@%s", package.id, package.version)
-      return
+    local id, version = package.id, package.version:getString()
+    if (visited[key] == "temp") then
+      return atomic.log:err("dependency cycle detected on %s@%s", id, version)
     end
 
-    if visited[key] then
+    if (visited[key]) then
       return
     end
 
@@ -208,17 +229,23 @@ function atomic.package.loadMany(packages)
 
     local state = SERVER and "server" or "client"
     local deps = package.dependencies or {}
-    -- copy of dirty hack
+
     for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersion in pairs(depTable) do
+      for depId, depVersionData in pairs(depTable) do
+        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+
         if (depId == "atomic") then
           continue
         end
 
         local depPkg = findDependency(depId, depVersion)
 
-        if not depPkg then
-          atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, package.id, package.version)
+        if (not depPkg) then
+          if (not isDependencyOptional) then
+            atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
+          end
+
           continue
         end
 
@@ -246,12 +273,19 @@ function atomic.package.loadMany(packages)
   end
 end
 
+-- todo push cache[path] in atomic.package.new
 local cache = {}
 local pathMap = atomic.package._pathMap
 
-function atomic.package.current()
-  -- 2 'cause 0 its lua engine, 1 its this function, and 2 is the caller
-  local info = debug.getinfo(2, "S")
+--- 0   Lua
+--- 1   Current function
+--- 2   Function caller
+--- (overhead)
+local baseStackIndex = 2
+
+---@param overhead? integer
+function atomic.package.current(overhead)
+  local info = debug.getinfo(2 + (overhead or 0), "S")
   if (not info) then
     return
   end
@@ -275,8 +309,9 @@ function atomic.package.current()
 
   for k, v in pairs(pathMap) do
     local s = clean:find(k, 1, true)
-    if s then
-      if s == 1 and #k > bestLen then
+
+    if (s) then
+      if (s) == 1 and #k > bestLen then
         bestVal, bestLen = v, #k
       end
     end

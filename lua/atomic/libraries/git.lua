@@ -4,6 +4,9 @@ end
 
 ---@class Atomic.Git.Folder
 ---@field folder string
+---@field get_branch fun(self): string
+---@field get_commit_id fun(self): string
+---@field fetch fun(self): string? Error
 
 if (not git) then
   require("git")

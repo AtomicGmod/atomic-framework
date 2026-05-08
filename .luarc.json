@@ -28,6 +28,10 @@
       "atomic",
       "git",
       "mysqloo",
-      "todo"
+      "todo",
+      "new",
+      "current",
+      "async",
+      "super"
   ]
 }

@@ -4,8 +4,10 @@ function coroutine.start(fun)
   local isOk, err = coroutine.resume(coroutine.create(fun))
 
   if (!isOk) then
-    local stack = debug.getcaller()
-    atomic.log:err("an error occured inside coroutine: " .. tostring(err) .. "\n\t" .. stack)
+    local package = current(1)
+    local logger = package and package.logger or atomic.log
+
+    logger:err("an error occured inside coroutine: %s", tostring(err))
   end
 
   return isOk, err
