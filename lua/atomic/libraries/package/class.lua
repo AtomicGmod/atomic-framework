@@ -369,7 +369,8 @@ function Package:getDependencyVersionByState(state, id)
 end
 
 ---@param id string
----@return Atomic.Package?
+---@generic T: Atomic.Package
+---@return T?
 function Package:getDependency(id)
   local version = self:getDependencyVersionByState(SERVER and "server" or "client", id)
     or self:getDependencyVersionByState("shared", id)

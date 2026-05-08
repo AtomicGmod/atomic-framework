@@ -31,6 +31,11 @@ function Command:getCooldown()
 	return self._cooldown
 end
 
+---@return string?
+function Command:getPermission()
+  return self._permission
+end
+
 ---@return string
 function Command:getName()
 	return self._name

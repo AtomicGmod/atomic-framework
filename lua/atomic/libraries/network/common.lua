@@ -6,7 +6,7 @@ atomic.network = atomic.network or {
     ---@type table<string, Atomic.Network.Schema>
     schemas = {}
   },
-  ---@alias Atomic.Network.Schema.Types "bool" | "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "u64" | "string" | "data" | "data_uncomp" | "entity" | "player" | "table"
+  ---@alias Atomic.Network.Schema.Types "bool" | "i8" | "i16" | "i32" | "u8" | "u16" | "u32" | "u64" | "float" | "string" | "data" | "data_uncomp" | "entity" | "player" | "table"
   _types = {
     bool = {net.ReadBool, net.WriteBool},
     i8 = {function() return net.ReadInt(8) end, function(n) net.WriteInt(n, 8) end},
@@ -16,6 +16,7 @@ atomic.network = atomic.network or {
     u16 = {function() return net.ReadUInt(16) end, function(n) net.WriteUInt(n, 16) end},
     u32 = {function() return net.ReadUInt(32) end, function(n) net.WriteUInt(n, 32) end},
     u64 = {net.ReadUInt64, net.WriteUInt64},
+    float = {net.ReadFloat, net.WriteFloat},
     string = {net.ReadString, net.WriteString},
     data = {function() return util.Decompress(net.ReadData(net.ReadUInt(32))) end, function(n) local c = util.Compress(n) net.WriteUInt(#c, 32) net.WriteData(c) end},
     data_uncomp = {function() return net.ReadData(net.ReadUInt(32)) end, function(n) net.WriteUInt(#n, 32) net.WriteData(n) end},

@@ -38,6 +38,10 @@ config:subscribe(atomic.logger.updateLevel, "logLevel")
 atomic._config.mysqlAutoconnect = config:get("mysqlAutoconnect")
 atomic._config.mysqlMultistatements = config:get("mysqlMultistatements")
 
+if (atomic.mysql) then
+	atomic.mysql.setMultistatements(atomic._config.mysqlMultistatements)
+end
+
 -- #2 Configuration variables synchronization setup
 
 ---@class InternalAtomic.Network.ReqConSync.Server: Atomic.Network.Message
