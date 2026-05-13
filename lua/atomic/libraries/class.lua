@@ -194,3 +194,9 @@ function atomic.class.super(instance, ...)
 
   parent.init(instance, ...)
 end
+
+---@param instance any
+---@param class Atomic.Class
+function atomic.class.isInstanceOf(instance, class)
+  return getmetatable(instance) == class
+end

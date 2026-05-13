@@ -2,6 +2,7 @@ new = atomic.class.new
 super = atomic.class.super
 current = atomic.package.current
 async = coroutine.start
+isInstanceOf = atomic.class.isInstanceOf
 
 Instant = atomic.time.newInstant
 Duration = atomic.time.newDuration
