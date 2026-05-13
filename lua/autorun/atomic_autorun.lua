@@ -1,15 +1,14 @@
-atomic = {
+atomic = atomic or {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-alpha.5",
+    version = "1.0.0-rc.1",
   },
-  _config = {}
+  _config = {},
+  _isGamemodeLoaded = false
 }
 
 file.CreateDir("atomic")
-
-local start = SysTime()
 
 local function includeSh(path)
   if (SERVER) then
@@ -50,11 +49,44 @@ shared("atomic/libraries/package/common.lua")
 server("atomic/libraries/mysql.lua")
 shared("atomic/utils/aliases.lua")
 
-local packageLoadingStart = SysTime()
-
 local package = atomic.package
 local packages = package.find("atomic/packages")
+---@type Atomic.Time.Instant
+local packageLoadingTime
 
-package.loadMany(packages)
+local function loadPackages()
+  package.loadMany(packages)
+  atomic.log:info("Atomic Framework %s %s has loaded %s packages for %sms", atomic.meta.version, atomic.meta.versionName, #packages, packageLoadingTime:elapsed():as_millis())
+end
 
-atomic.log:info("Atomic Framework %s %s has been loaded for %sms (%s packages loaded for %sms)", atomic.meta.version, atomic.meta.versionName, math.floor((SysTime() - start) * 1000 + 0.5), #atomic.package._list, math.floor((SysTime() - packageLoadingStart) * 1000 + 0.5))
+local function appendGamemodePackages()
+	local gamemode = gmod.GetGamemode()
+	local dir = gamemode and gamemode.packageDir
+	local gamemodePackages = dir and package.find(dir)
+
+	if (not gamemodePackages) then
+		return
+	end
+
+	for _, gamemodePackage in ipairs(gamemodePackages) do
+		packages[#packages + 1] = gamemodePackage
+	end
+end
+
+local function onGamemodeLoaded()
+	atomic._isGamemodeLoaded = true
+	packageLoadingTime = Instant()
+
+	appendGamemodePackages()
+	loadPackages()
+end
+
+local function init()
+	if (atomic._isGamemodeLoaded) then
+		onGamemodeLoaded()
+	else
+		hook.Add("OnGamemodeLoaded", "atomic:" .. atomic.meta.version, onGamemodeLoaded)
+	end
+end
+
+init()

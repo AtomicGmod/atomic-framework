@@ -169,6 +169,8 @@ function Package:include(side, files)
   end
 
   local include = atomic.loader[side]
+  local gamemode = gmod.GetGamemode()
+  local isGamemodePackage = self._metadata._path:Split("/")[1] == gamemode.FolderName
 
   if (not include) then
     return self.logger:err("unknown include side `%s`", side)
@@ -177,9 +179,18 @@ function Package:include(side, files)
   local dir = self._metadata.files.dir
   dir = dir and dir .. "/" or ""
 
+  if (isGamemodePackage) then
+    GM = gamemode -- -\(3_3)/-
+  end
+
   for _, filename in ipairs(files) do
     filename = (filename:sub(-4) == ".lua" and filename or filename .. ".lua")
     include(self._metadata._path .. "/" .. dir .. filename)
+  end
+
+  if (isGamemodePackage) then
+    ---@diagnostic disable-next-line
+    GM = nil
   end
 end
 
