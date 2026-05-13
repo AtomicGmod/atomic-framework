@@ -33,6 +33,48 @@ function classMt:__classname()
   return tostring(self._classname)
 end
 
+--- Calls a current method of the parent class
+---
+--- # Example
+--- ```lua
+--- local Player = package:getClass("Player")
+--- local User = package:class("User", Player) -- creating new class `User` that inherits class `Player`
+---
+--- function User:init(userData)
+---   self:super(userData) -- calling `Player:init` with argument `userData`
+--- end
+---
+--- function User:say(message)
+---   self:super(message) -- calling `Player:say` with argument `message`
+--- end
+---
+--- function User:die(reason)
+--- -- you can also use the global `super` function
+--- -- essentially, it does the same thing as `Class.super`
+--- -- this function is needed to maintain compatibility with older versions
+---   super(self, reason)
+--- end
+--- ```
+---@protected
+---@vararg any
+function classMt:super(...)
+  local stack = debug.getinfo(2)
+  local methodName = stack.name
+
+  if (not methodName) then
+    return
+  end
+
+  local parent = atomic.class.getParent(self)
+  local method = parent and parent[methodName]
+
+  if (not parent or not method) then
+    return
+  end
+
+  method(self, ...)
+end
+
 --- Creates new class
 ---@param name string
 ---@param parent Atomic.Class?
@@ -173,24 +215,11 @@ function atomic.class.getParent(class)
   return parent and parent.__index
 end
 
---- Calls the `init` method in the parent class
----
---- # Example
---- ```lua
---- local Player = package:getClass("Player")
---- local User = package:class("User", Player) -- creating new class `User` that inherits class `Player`
----
---- function User:init()
----   super(self) -- calling Player:init() method
---- end
---- ```
----@param instance Atomic.Class
----@vararg ...
-function atomic.class.super(instance, ...)
-  local parent = atomic.class.getParent(instance)
+-- just compatibility for older versions
+super = classMt.super
 
-  assert(parent, "class has no parent")
-  assert(isfunction(parent.init), "parent class has no init method")
-
-  parent.init(instance, ...)
+---@param instance any
+---@param class Atomic.Class
+function atomic.class.isInstanceOf(instance, class)
+  return getmetatable(instance) == class
 end

@@ -2,7 +2,7 @@ atomic = {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-alpha.4",
+    version = "1.0.0-alpha.5",
   },
   _config = {}
 }
@@ -45,7 +45,6 @@ client("atomic/libraries/webview/class.lua")
 client("atomic/libraries/webview/common.lua")
 client("atomic/libraries/webview/basicfuncs.lua")
 server("atomic/libraries/command/common.lua")
-server("atomic/libraries/git.lua")
 -- package loading should be one of the latest
 shared("atomic/libraries/package/common.lua")
 server("atomic/libraries/mysql.lua")

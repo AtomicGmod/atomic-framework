@@ -39,7 +39,6 @@ Atomic will automatically load available packages.
 
 Optional dependencies:
 - `MySQL` support / [MySQLOO](https://github.com/FredyH/MySQLOO)
-- `git` support / [gm_git](https://github.com/TeamMeadows/gm_git)
 
 ---
 
