@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Bundle Atomic Framework
-        uses: TeamMeadows/bundler@v0.1.0
+        uses: TeamMeadows/bundler@v0.2.0
         with:
           name: atomic
           type: addon
