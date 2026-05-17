@@ -51,8 +51,8 @@ function Package:init(metadata)
   self._metadata.kind = self._metadata.kind or "library"
   self._coreVersion = version:getCore() -- 1.0.0 (only major.minor.patch)
   self._version = version:getString() -- 1.0.0-alpha.1 (full version string)
-  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, self)
   self.logger = atomic.logger.new(prefix)
+  self._configuration = atomic.class.new(Configuration, metadata.configuration or {}, self)
 
   self:addRegistry()
   self:addLanguageFromMetadata()

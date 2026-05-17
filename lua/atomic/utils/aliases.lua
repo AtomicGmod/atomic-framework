@@ -8,3 +8,4 @@ Instant = atomic.time.newInstant
 Duration = atomic.time.newDuration
 SemVer = atomic.semver.new
 NaiveDateTime = atomic.time.newNaiveDateTime
+CachedArray = atomic.primitives.newCachedArray
