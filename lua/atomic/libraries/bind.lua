@@ -48,7 +48,7 @@ local function keybind_handler(player, key)
   end
 
   local tab = atomic.bind._storage[key]
-  if (type(tab) ~= "table") then return end
+  if (not tab) then return end
 
   for _, callback in pairs(tab) do
     callback(player)
