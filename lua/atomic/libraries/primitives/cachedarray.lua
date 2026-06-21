@@ -6,6 +6,8 @@
 local CachedArray = atomic.class.create("CachedArray")
 atomic.class.register(CachedArray, atomic.class.pseudo)
 
+---@alias CachedArray Atomic.CachedArray
+
 ---@generic T
 ---@param primaryKey string
 ---@param content? T[]
@@ -40,7 +42,7 @@ function CachedArray:__newindex(index, value)
   rawset(self, index, value)
 end
 
-function CachedArray:__len()
+function CachedArray:getLength()
   return #self.storage
 end
 
@@ -145,4 +147,15 @@ function CachedArray:remove(primaryKey)
   self:notifyChange()
 
   return removed
+end
+
+---@param callback? fun(a: any, b: any): boolean
+function CachedArray:sort(callback)
+  table.sort(self.storage, callback)
+
+  for index, item in ipairs(self.storage) do
+    self.storageMap[item[self.primaryKey]] = index
+  end
+
+  self:notifyChange()
 end
