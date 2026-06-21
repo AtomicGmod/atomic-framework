@@ -172,6 +172,10 @@ function Configuration:init(configuration, package)
   sql.Commit()
 end
 
+function Configuration:__tostring()
+  return "Configuration of " .. tostring(self._package:__tostring())
+end
+
 --- Returns current value of a field
 ---
 --- ```lua

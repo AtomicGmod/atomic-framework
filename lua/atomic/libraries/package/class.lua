@@ -75,7 +75,7 @@ local systemRegistry = {
       local regId = atomic.bind.bind(data.key, data.callback)
       data.registrationId = regId
     end,
-    function(_, _, data) atomic.bind.unbind(data.registrationId) end
+    function(_, index, data) atomic.bind.unbind(data.registrationId) end
   },
   commands = {
     function(_, name, command) atomic.command.add(name, command) end,
@@ -204,20 +204,17 @@ end
 
 ---@private
 function Package:enable()
-  self:emitEvent("onEnable")
-
   self._registry:enable()
 
   self:setEnabled(true)
-
-  self:emitEvent("onEnabled")
+  self:emitLocalEvent("onEnabled")
 end
 
 local removePhrase = atomic.i18n.removePhrase
 
 ---@private
 function Package:disable()
-  self:emitEvent("onDisable")
+  self:emitLocalEvent("onDisable")
 
   self._registry:disable()
 
@@ -238,7 +235,6 @@ function Package:disable()
   end
 
   self:setEnabled(false)
-  self:emitEvent("onDisabled")
 end
 
 --- Metadata
@@ -421,6 +417,7 @@ end
 --- Language
 
 local getPhrase = atomic.i18n.getPhrase
+local addPhrase = atomic.i18n.addPhrase
 
 ---@param player Player | string
 ---@param phraseId string
@@ -430,11 +427,18 @@ function Package:getPhrase(player, phraseId, ...)
   return getPhrase(player, self:formatUniversalId(phraseId), ...)
 end
 
+---@param language string
+---@param phrase string
+---@param translate string
+function Package:addPhrase(language, phrase, translate)
+  addPhrase(language, self:formatUniversalId(phrase), translate)
+end
+
 --- Binds
 
 ---@param callback fun(player: Player)
 ---@param key number
----@return integer registrationId
+---@return integer localId
 function Package:bind(callback, key)
   local id = self._registry:length("binds") + 1
 
@@ -447,9 +451,9 @@ function Package:bind(callback, key)
   return id
 end
 
----@param registrationId integer
-function Package:unbind(registrationId)
-  self:unregister("binds", registrationId)
+---@param localId integer
+function Package:unbind(localId)
+  self:unregister("binds", localId)
 end
 
 --- Commands
@@ -478,10 +482,12 @@ end
 
 --- Events
 
----@alias Atomic.Package.Events "onEnable" | "onEnabled" | "onDisable" | "onDisabled" | "onDatabaseConnected" | "CouldPlayerExecuteCommand" | "onAtomicPackageConfigChanged" | "onAtomicLoaded"
+---@alias Atomic.Package.Events "onEnabled" | "onDisable" | "onDatabaseConnected" | "CouldPlayerExecuteCommand" | "onAtomicPackageConfigChanged" | "onAtomicLoaded"
 
-function Package:formatUniversalId(eventName)
-  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, eventName)
+---@param id string
+---@return string
+function Package:formatUniversalId(id)
+  return ("atomic:%s:%s:%s"):format(self._metadata.id, self._version, id)
 end
 
 --- Adds an event for listening
@@ -520,7 +526,7 @@ end
 ---@private
 ---@param name Atomic.Package.Events
 ---@vararg any
-function Package:emitEvent(name, ...)
+function Package:emitLocalEvent(name, ...)
   local listener = self._registry:lookup("events", name)
 
   if (not listener) then
@@ -528,6 +534,17 @@ function Package:emitEvent(name, ...)
   end
 
   listener(self, ...)
+end
+
+Package.getEvent = Package.formatUniversalId
+
+--- Starts a event that is associated with the current package.
+---@protected
+---@param name string
+---@vararg any
+---@return any
+function Package:emitEvent(name, ...)
+  return hook.Run(self:getEvent(name), ...)
 end
 
 --- Classes

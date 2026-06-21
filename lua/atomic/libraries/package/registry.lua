@@ -12,6 +12,10 @@ function PackageRegistry:init(package)
   self._storage = {}
 end
 
+function PackageRegistry:__tostring()
+  return "PackageRegistry of " .. tostring(self._package:__tostring())
+end
+
 ---@param category string
 ---@param addFn Atomic.Package.Registry.Callback
 ---@param removeFn Atomic.Package.Registry.Callback
@@ -29,13 +33,14 @@ function PackageRegistry:set(category, key, value)
     return
   end
 
+  local currentValue = category.data[key]
   category.data[key] = value
 
   local package = self._package
 
   if (package:isEnabled()) then
     local fn = value == nil and category.remove or category.add
-    fn(package, key, value)
+    fn(package, key, (value == nil and currentValue or value))
   end
 end
 
