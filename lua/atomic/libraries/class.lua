@@ -33,6 +33,8 @@ function classMt:__classname()
   return tostring(self._classname)
 end
 
+classMt.getClassName = classMt.__classname
+
 --- Calls a current method of the parent class
 ---
 --- # Example

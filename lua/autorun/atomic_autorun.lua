@@ -2,7 +2,7 @@ atomic = atomic or {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-rc.1",
+    version = "1.0.0-rc.3",
   },
   _config = {},
   _isGamemodeLoaded = false
@@ -37,6 +37,7 @@ shared("atomic/utils/global.lua")
 shared("atomic/libraries/semver.lua")
 shared("atomic/libraries/i18n.lua")
 shared("atomic/libraries/bind.lua")
+shared("atomic/libraries/primitives/common.lua")
 shared("atomic/libraries/network/common.lua")
 shared("atomic/libraries/time/common.lua")
 shared("atomic/libraries/benchmark.lua")
