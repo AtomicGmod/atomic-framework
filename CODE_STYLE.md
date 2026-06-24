@@ -1,12 +1,17 @@
-# Atomic Framework — Code Style Guide
+# Atomic Framework - Code Style Guide
 
-This document defines the official coding conventions for **Atomic Framework** and all packages built under it.
-The goal is simple — **clean, readable, and predictable Lua code**.
+This document defines the official coding conventions for **Atomic Framework** and all packages built under it.\
+The goal is simple - **clean, readable, and predictable Lua code**.
+
+> [!NOTE]
+> You should use [LuaLS] while writing code.
+
+> [!TIP]
+> See [Garry's Mod Lua Snippets](https://github.com/luttje/glua-api-snippets) for Lua language server snippets and API definitions.
 
 ---
 
-## 🧱 General Style
-
+## General Style
 - **Indentation:** 2 spaces (no tabs)
 - **Line length:** ~100 characters max
 - **Encoding:** UTF-8 (no BOM)
@@ -16,8 +21,7 @@ The goal is simple — **clean, readable, and predictable Lua code**.
 
 ---
 
-## 📦 Naming Conventions
-
+## Naming Conventions
 | Type | Style | Example |
 |------|--------|---------|
 | Variables / locals | `camelCase` | `playerData`, `configTable` |
@@ -27,32 +31,27 @@ The goal is simple — **clean, readable, and predictable Lua code**.
 | Private internals | Prefix `_` | `_resolve_dependencies` |
 | Package namespaces | Lowercase, dot-separated | `atomic.config`, `atomic.command` |
 
-## 🧠 OOP Conventions
-
+## OOP Conventions
 - Use `:` for instance methods, `.` for static functions.
-- Avoid global variables — everything should live under a namespace (`Atomic.*`).
+- Avoid global variables - everything should live under a namespace (`atomic.*`).
 - Keep internal state private whenever possible.
-- Don’t mutate other modules’ tables directly.
 - Favor composition over inheritance when possible.
 
 ---
 
-## 🧩 Documentation & Comments
-
-- Use `--` for single-line comments and `--[[ ... ]]` for multi-line blocks.
-- Document **every public function** — parameters and return values.
+## Documentation & Comments
+- Use `--` for comments
+- Document **every public function** - parameters and return values.
 - Keep comment style consistent and concise.
 
-## 🚫 Don’ts
-
-- ❌ Do **not** use global variables unless absolutely necessary.
-- ❌ Do **not** rely on random metatable hacks or implicit magic.
-- ❌ Do **not** use inconsistent indentation or mixed styles.
+## Don’ts
+- Do **not** use global variables unless absolutely necessary.
+- Do **not** rely on random metatable hacks or implicit magic.
+- Do **not** use inconsistent indentation or mixed styles.
 
 ---
 
-## 🧩 Commits & Versioning
-
+## Commits & Versioning
 Use clear and conventional commit prefixes:
 
 | Type | Description | Example |

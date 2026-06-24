@@ -14,34 +14,53 @@
 [Getting Started]: https://deepwiki.com/TeamMeadows/atomic-framework/1.2-quick-start-guide
 [Documentation]: https://deepwiki.com/TeamMeadows/atomic-framework/
 
-Atomic is a flexible, OOP-driven framework for building Garry’s Mod addons and gamemodes with a clean, modular architecture.
-Each **package** is a self-contained unit - just like an addon - with built-in dependency management and powerful libraries for writing structured, maintainable Lua code.
+## About
+The Atomic Framework is a framework for Garry's Mod that manages the loading and lifecycle of your addons.
+
+Instead of working with traditional addons, Atomic uses the concept of a package.\
+A package is a logical unit that may depend on other packages.
+
+### Dependency Management
+During development, you can specify which packages your project needs.\
+Atomic automatically determines the loading order and ensures that all dependencies are fully ready for use before your code runs.
+
+This eliminates the need to write additional checks, timers, or hooks to wait for third-party libraries and other addons to load.
+
+### Other features
+Atomic Framework includes built-in APIs for:
+- Configuration
+- Networking
+- Localization (i18n)
+- Webview (DHTML based UI)
+- Commands
 
 ```lua
 local package = current()
-local libui = package:getDependency("com.developername.libui")
 
-package:listen(function(self)
-  libui:drawText(self:getPhrase("en", "hello_world"), libui.textSize.small, ScrW() / 2, ScrH() / 2, libui.color.white, libui.position.center)
-end, "HUDPaint")
-
-package:listen(function(self)
-  self.logger:info("package successfully enabled")
-end, "onEnable")
+package:listen(function(self, player)
+  self.logger:info("%s has been dead :(", player)
+end, "PlayerDeath")
 ```
 ###### Example of addon based on Atomic
+
+Also see the [other examples](./examples/lua/atomic/packages)
 
 ---
 
 ## Installation
-Simply place the framework in your `addons/` folder.
-Atomic will automatically load available packages.
+Download [the latest release of Atomic Framework](https://github.com/TeamMeadows/atomic-framework/releases/latest), and extract it to the `garrysmod/addons` folder.\
+We also recommend installing [MySQLOO](https://github.com/FredyH/MySQLOO/releases/latest) to work with MySQL.
 
-Optional dependencies:
-- `MySQL` support / [MySQLOO](https://github.com/FredyH/MySQLOO)
-
+## Ecosystem
+Our ecosystem already includes awesome packages such as:
+- [MeadowsORM](https://github.com/TeamMeadows/orm) - [Prisma](https://prisma.io)-like [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping)
+- [MeadowsUI](https://github.com/TeamMeadows/ui) - UI library
+- [Zen](https://github.com/TeamMeadows/zen) - Administration system
+- [CameraAPI](https://github.com/TeamMeadows/camera-api) - Shared interface for player view managment
+- [Meadows Bundler](https://github.com/TeamMeadows/bundler) - GitHub Action for automatically minifying addons and packages
+- [RNDX for Atomic](https://github.com/TeamMeadows/rndx-atomic) - Port of [RNDX](https://github.com/Srlion/RNDX) for Atomic Framework
 ---
 
 ## Contributing
-We welcome all contributions — bug fixes, improvements, and new libraries are appreciated.
+We welcome all contributions - bug fixes, improvements, and new libraries are appreciated.
 Please follow the [project’s coding style](./CODE_STYLE.md) and submit a pull request through GitHub.
