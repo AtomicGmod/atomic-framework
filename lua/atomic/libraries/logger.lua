@@ -74,6 +74,11 @@ end
 
 atomic._config.logLevel = atomic.logger.getCurrentLevel()
 
+---@private
+function Logger:__tostring()
+  return "Logger [" .. tostring(self.prefix) .. "]"
+end
+
 ---@param prefix string
 function Logger:init(prefix)
   self.prefix = prefix

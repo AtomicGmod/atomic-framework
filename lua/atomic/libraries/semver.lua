@@ -217,7 +217,11 @@ end
 ---@return boolean
 function SemanticVersion:__eq(other)
   other = isstring(other) and atomic.class.new(SemanticVersion, other) or other
-  return self:getString() == other:getString()
+
+  return self.major == other.major
+    and self.minor == other.minor
+    and self.patch == other.patch
+    and comparePreRelease(self.prerelease, other.prerelease) == 0
 end
 
 ---@private
@@ -234,7 +238,10 @@ function atomic.semver.new(version)
   return atomic.class.new(SemanticVersion, version)
 end
 
-atomic.class.pseudo._metadata.version = atomic.semver.new(atomic.class.pseudo._metadata.version)
+local metadataVersion = atomic.class.pseudo._metadata.version
+if (type(metadataVersion) == "string") then
+  atomic.class.pseudo._metadata.version = atomic.semver.new(metadataVersion)
+end
 
 ---@type table<string, fun(version: Atomic.SemanticVersion, base: Atomic.SemanticVersion): boolean>
 local prefixActions = {
