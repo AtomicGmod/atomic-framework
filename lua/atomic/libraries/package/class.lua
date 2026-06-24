@@ -220,7 +220,7 @@ function Package:disable()
 
   local localization = self._metadata.language
 
-  -- todo why its is not in registry?
+  -- todo why it is not in registry?
   if (localization) then
     for language, tab in pairs(localization) do
       for phraseId in pairs(tab) do
@@ -311,6 +311,11 @@ end
 ---@return "system" | "library"
 function Package:getKind()
   return self._metadata.kind or "system"
+end
+
+---@return Atomic.Logger
+function Package:getLogger()
+  return self.logger
 end
 
 ---@private
@@ -595,7 +600,7 @@ end
 ---@param data table<string, any>
 ---@param player? Player | table | Vector
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
----@return string? Message id
+---@return boolean
 function Package:sendNetworkMessage(name, data, player, sendFunction)
   ---@type Atomic.Network.Schema
   local schema = self._registry:lookup("netschemas", name)
