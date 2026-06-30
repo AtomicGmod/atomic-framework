@@ -42,8 +42,8 @@ local PackageRegistry = atomic.class.get("PackageRegistry")
 
 ---@param metadata Atomic.Package.InternalMetadata
 function Package:init(metadata)
-  local splittedId = metadata.id:Split(".")
-  local prefix = (splittedId[#splittedId] or metadata.id):lower()
+  local prefix = metadata.id:match("^[^.]+%.[^.]+%.(.+)$") or metadata.id
+  prefix = prefix:lower()
   local version = metadata.version
 
   self._isEnabled = false
@@ -562,7 +562,7 @@ end
 function Package:class(name, parent)
   local class = atomic.class.create(name, parent)
 
-  self:register("classes", class:__classname(), class)
+  self:register("classes", class:getClassName(), class)
 
   return class
 end
@@ -597,7 +597,7 @@ function Package:onNetworkMessage(callback, schemaName)
 end
 
 ---@param name string
----@param data table<string, any>
+---@param data? table<string, any>
 ---@param player? Player | table | Vector
 ---@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
 ---@return boolean
@@ -605,7 +605,7 @@ function Package:sendNetworkMessage(name, data, player, sendFunction)
   ---@type Atomic.Network.Schema
   local schema = self._registry:lookup("netschemas", name)
 
-  return atomic.network.send(schema._name, data, player, sendFunction)
+  return atomic.network.send(schema:getName(), data or {}, player, sendFunction)
 end
 
 ---@param name string
