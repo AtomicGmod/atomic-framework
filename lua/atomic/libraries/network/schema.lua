@@ -63,6 +63,11 @@ function NetworkSchema:writeNetPacket(data)
   end
 end
 
+---@return string
+function NetworkSchema:getName()
+  return self._name
+end
+
 ---@return Atomic.Package
 function NetworkSchema:getParentPackage()
   return self._package
