@@ -38,7 +38,6 @@ atomic.class.register(Configuration, atomic.class.pseudo)
 if (not sql.TableExists("atomic_config")) then
   sql.Query([[CREATE TABLE IF NOT EXISTS atomic_config(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    server TEXT,
     package_id TEXT NOT NULL,
     name TEXT NOT NULL UNIQUE,
     value TEXT NOT NULL
@@ -88,18 +87,12 @@ local types = {
   }
 }
 
----@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param configuration table<"menu", table<string, Atomic.Package.Configuration.Raw>>
 ---@param package Atomic.Package
 ---@return table<string, Atomic.Package.Configuration.Raw>, integer
 local function flatConfig(configuration, package)
-  -- CLIENT == true -> flat(configuration["client"] + configuration["shared"])
-  -- SERVER == true -> flat(configuration)
   local result = {}
   local length = 0
-
-  if (CLIENT) then
-    configuration.server = nil
-  end
 
   for _, config in pairs(configuration) do
     for variable, data in pairs(config) do
@@ -116,9 +109,7 @@ local function flatConfig(configuration, package)
   return result, length
 end
 
-local serverIp = CLIENT and game.GetIPAddress() or nil
-
----@param configuration table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
+---@param configuration table<"menu", table<string, Atomic.Package.Configuration.Raw>>
 ---@param package Atomic.Package
 function Configuration:init(configuration, package)
   local configuration, length = flatConfig(configuration, package)
@@ -129,7 +120,7 @@ function Configuration:init(configuration, package)
   self._storage = {}
   self._subscribedCallbacks = {}
 
-  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE server" .. (serverIp and "=" or " IS ") .. "? AND package_id=?", serverIp, packageId)
+  local data = sql.QueryTyped("SELECT name, value FROM atomic_config WHERE package_id=?", packageId)
   ---@cast data { name: string, value: string }[]
 
   if (istable(data) and #data > 0) then
@@ -165,7 +156,7 @@ function Configuration:init(configuration, package)
     if (not self._storage[name]) then
       local handler = types[raw.type]
       local defaultValue = handler and handler.serialize(raw.default) or tostring(raw.default)
-      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(server, package_id, name, value) VALUES(?, ?, ?, ?)", serverIp, packageId, name, defaultValue)
+      sql.QueryTyped("INSERT OR IGNORE INTO atomic_config(package_id, name, value) VALUES(?, ?, ?)", packageId, name, defaultValue)
       self._storage[name] = { type = raw.type, value = raw.default, sync = raw.sync }
     end
   end
@@ -257,7 +248,7 @@ function Configuration:set(key, value)
 
   value = handler.deserialize(value)
 
-  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE server" .. (serverIp and "=" or " IS ") .. "? AND name=? AND package_id=?", handler.serialize(value), serverIp, key, self._package:getId())
+  sql.QueryTyped("UPDATE atomic_config SET value=? WHERE name=? AND package_id=?", handler.serialize(value), key, self._package:getId())
 
   local isSuccessful = true
   local subscribedCallback = self._subscribedCallbacks[key]

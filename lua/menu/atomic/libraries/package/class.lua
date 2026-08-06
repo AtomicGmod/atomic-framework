@@ -1,5 +1,3 @@
----@alias ScriptState "client" | "shared" | "server"
-
 ---@alias Atomic.Package.Metadata.Dependency string | { optional: true, version: string }
 
 ---@class Atomic.Package.Metadata
@@ -9,9 +7,9 @@
 ---@field version string
 ---@field documentation? string
 ---@field homepageUrl? string
----@field configuration? table<ScriptState, table<string, Atomic.Package.Configuration.Raw>>
----@field files { dir?: string, [ScriptState]: string[] }
----@field dependencies? table<ScriptState, table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
+---@field configuration? table<"menu", table<string, Atomic.Package.Configuration.Raw>>
+---@field files { dir?: string, ["menu"]: string[] }
+---@field dependencies? table<"menu", table<("atomic" | string), Atomic.Package.Metadata.Dependency>>
 ---@field kind "system" | "library"
 ---@field icon? string Url to the icon of a package
 ---@field language? table<string, table<string, string>>
@@ -152,45 +150,27 @@ function Package:load()
     return self.logger:err("no files to include")
   end
 
-  self:include("shared", files.shared)
-  self:include("server", files.server)
-  self:include("client", files.client)
+  self:include(files.menu)
 
   self:enable()
   self.logger:debug("%s loaded successfully for %sms", self, instant:elapsed():as_millis())
 end
 
 ---@private
----@param side ScriptState
 ---@param files string[]
-function Package:include(side, files)
+function Package:include(files)
   if (not files) then
     return
   end
 
-  local include = atomic.loader[side]
-  local gamemode = gmod.GetGamemode()
-  local isGamemodePackage = self._metadata._path:Split("/")[1] == gamemode.FolderName
-
-  if (not include) then
-    return self.logger:err("unknown include side `%s`", side)
-  end
+  local include = atomic.loader.include
 
   local dir = self._metadata.files.dir
   dir = dir and dir .. "/" or ""
 
-  if (isGamemodePackage) then
-    GM = gamemode -- -\(3_3)/-
-  end
-
   for _, filename in ipairs(files) do
     filename = (filename:sub(-4) == ".lua" and filename or filename .. ".lua")
     include(self._metadata._path .. "/" .. dir .. filename)
-  end
-
-  if (isGamemodePackage) then
-    ---@diagnostic disable-next-line
-    GM = nil
   end
 end
 
@@ -319,43 +299,8 @@ function Package:getLogger()
 end
 
 ---@private
-function Package:getClientFiles()
-  return self._metadata.files.client or {}
-end
-
----@private
-function Package:getSharedFiles()
-  return self._metadata.files.shared or {}
-end
-
----@private
-function Package:getServerFiles()
-  return self._metadata.files.server or {}
-end
-
----@return boolean
-function Package:isClientOnly()
-  local client = self:getClientFiles()
-  local shared = self:getSharedFiles()
-  local server = self:getServerFiles()
-
-  return #shared == 0 and #server == 0 and #client > 0
-end
-
----@return boolean
-function Package:isServerOnly()
-  local client = self:getClientFiles()
-  local shared = self:getSharedFiles()
-
-  return #shared == 0 and #client == 0 and #shared > 0
-end
-
-function Package:isShared()
-  local client = self:getClientFiles()
-  local shared = self:getSharedFiles()
-  local server = self:getServerFiles()
-
-  return #shared > 0 or (#client > 0 and #server > 0)
+function Package:getFiles()
+  return self._metadata.files.menu or {}
 end
 
 --- ```lua
@@ -368,12 +313,11 @@ function Package:getConfiguration()
 end
 
 ---@protected
----@param state ScriptState
 ---@param id string
 ---@return string?
-function Package:getDependencyVersionByState(state, id)
+function Package:getDependencyVersionByState(id)
   local dependencies = self._metadata.dependencies
-  local stateDependencies = dependencies and dependencies[state]
+  local stateDependencies = dependencies and dependencies.menu
   local depVersionData = stateDependencies and stateDependencies[id]
 
   ---@diagnostic disable-next-line
@@ -384,11 +328,10 @@ end
 ---@generic T: Atomic.Package
 ---@return T?
 function Package:getDependency(id)
-  local version = self:getDependencyVersionByState(SERVER and "server" or "client", id)
-    or self:getDependencyVersionByState("shared", id)
+  local version = self:getDependencyVersionByState(id)
 
   if (not version) then
-    return self.logger:err("dependency `%s` is not specified in package.lua!", id)
+    return self.logger:err("dependency `%s` is not specified in metadata file", id)
   end
 
   return atomic.package.get(id, version)
@@ -424,12 +367,12 @@ end
 local getPhrase = atomic.i18n.getPhrase
 local addPhrase = atomic.i18n.addPhrase
 
----@param player Player | string
+---@param language string
 ---@param phraseId string
 ---@param ...any?
 ---@return string
-function Package:getPhrase(player, phraseId, ...)
-  return getPhrase(player, self:formatUniversalId(phraseId), ...)
+function Package:getPhrase(language, phraseId, ...)
+  return getPhrase(language, self:formatUniversalId(phraseId), ...)
 end
 
 ---@param language string
@@ -574,57 +517,6 @@ function Package:getClass(name)
 end
 
 --- Network
-
----@param schemaName string
----@return Atomic.Network.Schema
-function Package:networkSchema(schemaName)
-  local schema = atomic.network.new(self, self:formatUniversalId(schemaName))
-
-  self:register("netschemas", schemaName, schema)
-
-  return schema
-end
-
----@generic T: Atomic.Package
----@param self T
----@param callback fun(self: T, message: Atomic.Network.Message)
----@param schemaName string
-function Package:onNetworkMessage(callback, schemaName)
-  --- todo remove diagnostic disable
-  --- ebuchi lualsp >:(
-  ---@diagnostic disable-next-line undefined-field
-  self:register("netlisteners", schemaName, callback)
-end
-
----@param name string
----@param data? table<string, any>
----@param player? Player | table | Vector
----@param sendFunction? "Send" | "SendOmit" | "SendPAS" | "SendPVS" | "Broadcast"
----@return boolean
-function Package:sendNetworkMessage(name, data, player, sendFunction)
-  ---@type Atomic.Network.Schema
-  local schema = self._registry:lookup("netschemas", name)
-
-  return atomic.network.send(schema:getName(), data or {}, player, sendFunction)
-end
-
----@param name string
----@param data table<string, any>
-function Package:broadcastNetworkMessage(name, data)
-  self:sendNetworkMessage(name, data, nil, "Broadcast")
-end
-
----@async
----@param name string
----@param data table<string, any>
----@param player Player?
----@param shouldIgnoreError? boolean
----@return Atomic.Network.Message | "timeout" | "err"
-function Package:sendNetworkMessageAsync(name, data, player, shouldIgnoreError)
-  local schema = self._registry:lookup("netschemas", name)
-
-  return atomic.network.sendAsync(schema._name, data, player, shouldIgnoreError)
-end
 
 --- Creates new webview and automatically registeres it
 ---@param name string

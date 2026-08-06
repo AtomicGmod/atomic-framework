@@ -6,9 +6,8 @@
   "Lua.runtime.special": {
     "include": "dofile",
     "IncludeCS": "dofile",
-    "atomic.loader.client": "dofile",
-    "atomic.loader.shared": "dofile",
-    "atomic.loader.server": "dofile"
+    "atomic.loader.includeMenu": "dofile",
+    "includeMenu": "dofile"
   },
   "Lua.runtime.nonstandardSymbol": [
     "continue",
@@ -27,7 +26,6 @@
   "diagnostics.globals": [
       "atomic",
       "git",
-      "mysqloo",
       "todo",
       "new",
       "current",

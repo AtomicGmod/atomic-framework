@@ -48,8 +48,11 @@ Also see the [other examples](./examples/lua/atomic/packages)
 ---
 
 ## Installation
-Download [the latest release of Atomic Framework](https://github.com/TeamMeadows/atomic-framework/releases/latest), and extract it to the `garrysmod/addons` folder.\
-We also recommend installing [MySQLOO](https://github.com/FredyH/MySQLOO/releases/latest) to work with MySQL.
+1. Download [the latest release of Atomic Framework](https://github.com/TeamMeadows/atomic-framework/releases/latest), and extract it to the `garrysmod/lua/menu` folder.\
+2. Add this to `main.lua`
+```lua
+include("autorun_atomicmenu.lua")
+```
 
 ## Ecosystem
 Our ecosystem already includes awesome packages such as:

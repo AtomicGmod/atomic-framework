@@ -95,11 +95,12 @@ end
 ---   player:ChatPrint(phrase)
 --- end)
 --- ```
----@param player Player
 ---@return string
-function atomic.i18n.getPlayerLanguage(player)
-  return SERVER and IsValid(player) and player:GetInfo("gmod_language") or GetConVar("gmod_language"):GetString() or atomic.i18n._defaultLanguage
+function atomic.i18n.getLanguage()
+  return GetConVar("gmod_language"):GetString() or atomic.i18n._defaultLanguage
 end
+
+atomic.i18n.getPlayerLanguage = atomic.i18n.getLanguage
 
 --- Finds language phrase and formats it
 ---
@@ -119,7 +120,7 @@ end
 ---   atomic.i18n.getPhrase(Player(2), "boughtManyDoors")
 --- end
 --- ```
----@param language string | Player
+---@param language string
 ---@param phraseIndex string
 ---@vararg string | number
 ---@return string

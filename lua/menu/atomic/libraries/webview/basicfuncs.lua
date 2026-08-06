@@ -31,6 +31,7 @@ add("__vgui__handle__", function(webview, id, visible, x, y, w, h)
   element:SetTall(h)
 end)
 
+-- todo
 add("getNick", function()
   return LocalPlayer():Nick()
 end)
@@ -41,24 +42,4 @@ end)
 
 add("getSteamId64", function()
   return LocalPlayer():SteamID64()
-end)
-
-add("getUserGroup", function()
-  return LocalPlayer():GetUserGroup()
-end)
-
-add("getHealth", function()
-  return LocalPlayer():Health()
-end)
-
-add("getArmor", function()
-  return LocalPlayer():Armor()
-end)
-
-add("getPosition", function()
-  return tostring(LocalPlayer():GetPos())
-end)
-
-add("getAngle2D", function()
-  return LocalPlayer():GetAngles().yaw
 end)

@@ -9,9 +9,9 @@ atomic.package = atomic.package or {
 atomic.package._list = {}
 
 ---@include
-atomic.loader.shared("config.lua")
-atomic.loader.shared("registry.lua")
-atomic.loader.shared("class.lua")
+atomic.loader.include("config.lua")
+atomic.loader.include("registry.lua")
+atomic.loader.include("class.lua")
 
 local packageList = atomic.package._list
 
@@ -43,7 +43,7 @@ end
 
 --- should be right after `atomic.package.new` definition!!!
 ---@include
-atomic.loader.shared("atomic.lua")
+atomic.loader.include("atomic.lua")
 
 local isSuitable = atomic.semver.isSuitable
 
@@ -76,29 +76,21 @@ local SemanticVersion = atomic.class.get("SemanticVersion")
 ---@param path string
 ---@return Atomic.Package.InternalMetadata?
 function atomic.package.readPackageMetadata(path)
-  if (not file.Exists(path, "LUA")) then
+  if (not file.Exists(path, "GAME")) then
     return nil
   end
 
-  local metadata = SERVER and atomic.loader.server(path) or atomic.loader.client(path)
+  local metadata = atomic.loader.include(path)
   ---@cast metadata Atomic.Package.InternalMetadata
 
   if (type(metadata) ~= "table") then
     return nil
   end
 
-  metadata._path = path:GetPathFromFilename():sub(1, -2) -- removing last "/" from string
+  local path = path:GetPathFromFilename():sub(1, -2) -- removing last "/" from string
+
+  metadata._path = path:sub(5)
   metadata.version = atomic.class.new(SemanticVersion, metadata.version)
-
-  if (SERVER) then
-    local files = metadata.files
-
-    -- why its here??
-    -- make server-only packages hidden from clients
-    if (type(files) == "table" and type(files.client) == "table" or type(files.shared) == "table") then
-      atomic.loader.csluafile(path)
-    end
-  end
 
   return metadata
 end
@@ -121,7 +113,7 @@ function atomic.package.find(path)
   end
 
   local result = {}
-  local _, packages = file.Find(path .. "/*", "LUA")
+  local _, packages = file.Find(path .. "/*", "GAME")
 
   for _, dirName in ipairs(packages) do
     local packageMeta = atomic.package.readPackageMetadata(path .. "/" .. dirName .. "/package.lua")
@@ -158,19 +150,14 @@ function atomic.package.load(metadata)
   -- dependencies check
   local deps = metadata.dependencies
   if (deps) then
-    local state = SERVER and "server" or "client"
+    for depId, depVersionData in pairs(deps.menu or {}) do
+      local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+      local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+      ---@cast depVersion string
+      local dep = atomic.package.get(depId, depVersion)
 
-    -- dirty hack
-    for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersionData in pairs(depTable) do
-        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
-        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
-        ---@cast depVersion string
-        local dep = atomic.package.get(depId, depVersion)
-
-        if (not dep and not isDependencyOptional) then
-          return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
-        end
+      if (not dep and not isDependencyOptional) then
+        return package.logger:err("dependency %s@%s not satisfied for package %s@%s", depId, depVersion, id, version)
       end
     end
   end
@@ -227,30 +214,27 @@ function atomic.package.loadMany(packages)
 
     visited[key] = "temp"
 
-    local state = SERVER and "server" or "client"
     local deps = package.dependencies or {}
 
-    for _, depTable in pairs({ [state] = deps[state], shared = deps.shared }) do
-      for depId, depVersionData in pairs(depTable) do
-        local isDependencyOptional = istable(depVersionData) and depVersionData.optional
-        local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
+    for depId, depVersionData in pairs(deps.menu or {}) do
+      local isDependencyOptional = istable(depVersionData) and depVersionData.optional
+      local depVersion = istable(depVersionData) and depVersionData.version or depVersionData
 
-        if (depId == "atomic") then
-          continue
-        end
-
-        local depPkg = findDependency(depId, depVersion)
-
-        if (not depPkg) then
-          if (not isDependencyOptional) then
-            atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
-          end
-
-          continue
-        end
-
-        visit(depPkg)
+      if (depId == "atomic") then
+        continue
       end
+
+      local depPkg = findDependency(depId, depVersion)
+
+      if (not depPkg) then
+        if (not isDependencyOptional) then
+          atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
+        end
+
+        continue
+      end
+
+      visit(depPkg)
     end
 
     visited[key] = true
@@ -301,9 +285,7 @@ function atomic.package.current(overhead)
   end
 
   local clean = src:gsub("^@", "")
-
-  clean = clean:gsub("^addons/[^/]+/lua/", "")
-    :gsub("^gamemodes/([^/]+)/", "%1/")
+  clean = clean:gsub("^.-lua/", "")
 
   local bestVal, bestLen = nil, 0
 

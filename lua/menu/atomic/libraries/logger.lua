@@ -28,17 +28,17 @@ function atomic.logger.new(prefix)
 end
 
 local function getcurrenttime()
-  return os.date("%X")
+  return os.date("%H:%M:%S")
 end
 
 -- colors
 -- *client game console doesn't support the ANSI escape codes
-local white = CLIENT and Color(255, 255, 255) or "\27[37m"
-local trace = CLIENT and Color(128, 128, 128) or "\27[90m"
-local debug = CLIENT and Color(0, 255, 255) or "\27[36m"
-local info = CLIENT and Color(0, 255, 0) or "\27[32m"
-local warn = CLIENT and Color(255, 255, 0) or "\27[33m"
-local err = CLIENT and Color(255, 0, 0) or "\27[31m"
+local white = MENU_DLL and Color(255, 255, 255) or "\27[37m"
+local trace = MENU_DLL and Color(128, 128, 128) or "\27[90m"
+local debug = MENU_DLL and Color(0, 255, 255) or "\27[36m"
+local info = MENU_DLL and Color(0, 255, 0) or "\27[32m"
+local warn = MENU_DLL and Color(255, 255, 0) or "\27[33m"
+local err = MENU_DLL and Color(255, 0, 0) or "\27[31m"
 
 local levels = {
   TRACE = 1,

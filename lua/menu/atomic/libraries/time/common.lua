@@ -1,9 +1,9 @@
 atomic.time = atomic.time or {}
 
 ---@include
-atomic.loader.shared("duration.lua")
-atomic.loader.shared("instant.lua")
-atomic.loader.shared("naivedatetime.lua")
+atomic.loader.include("duration.lua")
+atomic.loader.include("instant.lua")
+atomic.loader.include("naivedatetime.lua")
 
 local class = atomic.class
 local new = class.new

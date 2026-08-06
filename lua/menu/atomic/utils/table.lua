@@ -1,15 +1,14 @@
-local iswin = jit.os == "Windows"
-local white = iswin and Color(255, 255, 255) or "\27[37m"
-local blue = iswin and Color(0, 255, 255) or "\27[36m"
+local white = Color(255, 255, 255)
+local blue = Color(0, 255, 255)
 
 local typeAliases = {
   string = "str",
   number = "int",
   boolean = "bool",
   table = "tbl",
-  thread = "thr",
-  userdata = "ud",
-  ["function"] = "fn",
+  thread = "thrd",
+  userdata = "user",
+  ["function"] = "func",
   ["nil"] = "nil"
 }
 

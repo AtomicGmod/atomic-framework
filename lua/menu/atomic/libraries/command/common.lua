@@ -5,7 +5,7 @@ atomic.command = atomic.command or {
 }
 
 ---@include
-atomic.loader.server("class.lua")
+atomic.loader.include("class.lua")
 
 ---@type Atomic.Command
 local commandClass = atomic.class.get("Command", atomic.class.pseudo)

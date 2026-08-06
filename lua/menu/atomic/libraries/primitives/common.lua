@@ -1,7 +1,7 @@
 atomic.primitives = atomic.primitives or {}
 
 ---@include
-atomic.loader.shared("cachedarray.lua")
+atomic.loader.include("cachedarray.lua")
 
 ---@type Atomic.CachedArray
 local CachedArray = atomic.class.get("CachedArray")

@@ -14,21 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bundle Atomic Framework
+      - name: Bundle Atomic Framework Menu
         uses: TeamMeadows/bundler@v0.2.0
         with:
-          name: atomic
+          name: atomicmenu
           type: addon
+          basedir: |
+            lua
+            menu
 
       - name: Pack bundle into zip
         run: |
           mkdir -p artifacts
           cd dist
-          zip -r ../artifacts/atomic-framework-release.zip atomic
+          zip -r ../artifacts/atomic-framework-menu-release.zip atomic
 
       - name: Publish to releases
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/atomic-framework-release.zip
+          files: artifacts/atomic-framework-menu-release.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
