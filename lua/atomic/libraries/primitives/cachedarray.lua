@@ -2,11 +2,9 @@
 ---@field private primaryKey string
 ---@field private storage table[]
 ---@field private storageMap table<(string | integer), integer>
----@field private onChange? fun(self: self)
+---@field private onChange? fun(self: Atomic.CachedArray, index?: integer | string, value?: T)
 local CachedArray = atomic.class.create("CachedArray")
 atomic.class.register(CachedArray, atomic.class.pseudo)
-
----@alias CachedArray Atomic.CachedArray
 
 ---@generic T
 ---@param primaryKey string
@@ -46,20 +44,22 @@ function CachedArray:getLength()
   return #self.storage
 end
 
----@param callback fun(self: self)
+---@param callback fun(self: Atomic.CachedArray, index?: integer | string, value?: T)
 function CachedArray:setOnChange(callback)
   self.onChange = callback
 end
 
 ---@private
-function CachedArray:notifyChange()
+---@param index? integer | string
+---@param value? T
+function CachedArray:notifyChange(index, value)
   local callback = self.onChange
 
   if (not callback) then
     return
   end
 
-  callback(self)
+  callback(self, index, value)
 end
 
 ---@generic T
@@ -91,7 +91,7 @@ function CachedArray:insert(data)
   self.storage[newIndex] = data
   self.storageMap[primaryKeyValue] = newIndex
 
-  self:notifyChange()
+  self:notifyChange(primaryKeyValue, data)
 
   return newIndex
 end
@@ -144,7 +144,7 @@ function CachedArray:remove(primaryKey)
   self.storage[lastIndex] = nil
   self.storageMap[primaryKey] = nil
 
-  self:notifyChange()
+  self:notifyChange(primaryKey, removed)
 
   return removed
 end

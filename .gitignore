@@ -1,2 +1,4 @@
 changelog.md
 todo.md
+*.iml
+.idea

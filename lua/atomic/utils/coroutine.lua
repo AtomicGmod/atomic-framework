@@ -1,9 +1,10 @@
----@param fun function
+--- Starts a new coroutine, providing developers with an “asynchronous” environment
+---@param fun async function
 ---@return boolean, ...any
 function coroutine.start(fun)
   local isOk, err = coroutine.resume(coroutine.create(fun))
 
-  if (!isOk) then
+  if (not isOk) then
     local package = current(1)
     local logger = package and package.logger or atomic.log
 
