@@ -1,9 +1,12 @@
 atomic.package = atomic.package or {
+  _logger = atomic.logger.new("atomic.package"),
   ---@type table<string, table<string, Atomic.Package>>
   _storage = {},
   ---@type table<string, { [1]: string, [2]: string }> table<Path, Package>
   _pathMap = {},
 }
+
+local logger = atomic.package._logger
 
 ---@type Atomic.Package[]
 atomic.package._list = {}
@@ -140,17 +143,17 @@ function atomic.package.load(metadata)
   local id, version, path = metadata.id, metadata.version:getString(), metadata._path
 
   if (type(metadata) ~= "table" or not id or not version or not path) then
-    return atomic.log:warn("package %s@%s have is invalid!", id or path or "N/A (see TRACE logs)", version or "N/A")
+    return logger:warn("package %s@%s have is invalid!", id or path or "N/A (see TRACE logs)", version or "N/A")
   end
 
   if ((atomic.package._storage[id] or {})[version]) then
-    return atomic.log:trace("package %s@%s is already loaded", id, version)
+    return logger:trace("package %s@%s is already loaded", id, version)
   end
 
   local isOk, package = pcall(atomic.package.new, metadata)
 
   if (not isOk) then
-    return atomic.log:err("package %s@%s failed to load: %s", id, version, package)
+    return logger:err("package %s@%s failed to load: %s", id, version, package)
   end
 
   atomic.package._pathMap[path] = { id, version }
@@ -178,14 +181,14 @@ function atomic.package.load(metadata)
   local isOk, err = pcall(package.load, package)
 
   if (not isOk) then
-    atomic.log:err("failed to load package `%s@%s`: %s", id, version, err)
+    logger:err("failed to load package `%s@%s`: %s", id, version, err)
   end
 end
 
 ---@param packages Atomic.Package.InternalMetadata[]?
 function atomic.package.loadMany(packages)
   if (type(packages) ~= "table" or #packages == 0) then
-    return atomic.log:warn("no packages to load")
+    return logger:warn("no packages to load")
   end
 
   local loadingSort = {}
@@ -218,7 +221,7 @@ function atomic.package.loadMany(packages)
 
     local id, version = package.id, package.version:getString()
     if (visited[key] == "temp") then
-      return atomic.log:err("dependency cycle detected on %s@%s", id, version)
+      return logger:err("dependency cycle detected on %s@%s", id, version)
     end
 
     if (visited[key]) then
@@ -243,7 +246,7 @@ function atomic.package.loadMany(packages)
 
         if (not depPkg) then
           if (not isDependencyOptional) then
-            atomic.log:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
+            logger:err("dependency `%s@%s` is required for `%s@%s`, but was not found", depId, depVersion, id, version)
           end
 
           continue
@@ -266,7 +269,7 @@ function atomic.package.loadMany(packages)
     keys[#keys+1] = getKey(package)
   end
 
-  atomic.log:trace("package loading order: %s", table.concat(keys, ", "))
+  logger:trace("package loading order: %s", table.concat(keys, ", "))
 
   for _, package in ipairs(loadingSort) do
     atomic.package.load(package)

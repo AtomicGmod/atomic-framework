@@ -28,7 +28,7 @@ function atomic.logger.new(prefix)
 end
 
 local function getcurrenttime()
-  return os.date("%X")
+  return os.date("%H:%M:%S")
 end
 
 -- colors

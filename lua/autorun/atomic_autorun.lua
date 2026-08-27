@@ -2,7 +2,7 @@ atomic = atomic or {
   meta = {
     author = "smokingplaya",
     versionName = "Cherry",
-    version = "1.0.0-rc.4",
+    version = "1.0.0-rc.5",
   },
   _config = {},
   _isGamemodeLoaded = false
