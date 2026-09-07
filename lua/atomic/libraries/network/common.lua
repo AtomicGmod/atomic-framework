@@ -168,6 +168,8 @@ function atomic.network.receiver(len, player)
     messageId = net.ReadString()
   end
 
+	logger:trace("received message `%s` (messageId `%s`) len %s bits", schemaName, messageId or "n/a", len)
+
   local schema = schemas[schemaName]
   local message = schema and schema:readNetPacket(player, messageId)
 

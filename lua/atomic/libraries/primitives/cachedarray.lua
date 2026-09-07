@@ -149,6 +149,11 @@ function CachedArray:remove(primaryKey)
   return removed
 end
 
+function CachedArray:clear()
+	self.storage = {}
+	self.storageMap = {}
+end
+
 ---@param callback? fun(a: any, b: any): boolean
 function CachedArray:sort(callback)
   table.sort(self.storage, callback)

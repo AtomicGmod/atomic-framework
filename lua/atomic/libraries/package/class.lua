@@ -220,7 +220,6 @@ function Package:disable()
 
   local localization = self._metadata.language
 
-  -- todo why it is not in registry?
   if (localization) then
     for language, tab in pairs(localization) do
       for phraseId in pairs(tab) do
