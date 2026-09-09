@@ -40,6 +40,11 @@ function CachedArray:__newindex(index, value)
   rawset(self, index, value)
 end
 
+---@param newStorage table
+function CachedArray:changeStorage(newStorage)
+	self:init(self.primaryKey, newStorage)
+end
+
 function CachedArray:getLength()
   return #self.storage
 end

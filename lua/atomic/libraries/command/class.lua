@@ -72,7 +72,7 @@ function Command:onExecute(executable)
 	return self
 end
 
--- why it on atomic framework, not in admin system?
+-- why its on atomic framework, not in admin system?
 ---@param player Player
 ---@param permission string
 local function hasRightToExecute(player, permission)
@@ -105,7 +105,7 @@ local function hasRightToExecute(player, permission)
 end
 
 ---@param executor Player
----@param arguments table<string, Atomic.Command.ArgumentKind>
+---@param arguments table<string, Atomic.Command.ArgumentTypes>
 ---@return async fun(): (boolean, string?) | nil
 function Command:execute(executor, arguments)
   if (not self._enabled) then
@@ -116,7 +116,7 @@ function Command:execute(executor, arguments)
 		local couldExecute = hook.Run("CouldPlayerExecuteCommand", executor, self)
 
 		if (couldExecute == false or (self._permission and not hasRightToExecute(executor, self._permission))) then
-			return false, "no_perms"
+			return false, "no_permission"
 		end
 
 		local err = self._execute(executor, arguments)

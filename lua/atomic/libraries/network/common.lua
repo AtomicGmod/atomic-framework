@@ -38,6 +38,8 @@ end
 atomic.loader.shared("message.lua")
 atomic.loader.shared("schema.lua")
 
+local md5 = util.MD5
+
 local logger = atomic.network.logger
 local schemas = atomic.network._storage.schemas
 local listeners = atomic.network._storage.listeners
@@ -54,28 +56,28 @@ end
 
 ---@param schema Atomic.Network.Schema
 function atomic.network.register(schema)
-  schemas[schema._name] = schema
+  schemas[md5(schema._name)] = schema
 end
 
 ---@param name string
 function atomic.network.unregister(name)
-  schemas[name] = nil
+  schemas[md5(name)] = nil
 end
 
 ---@param name string
 ---@param callback fun(message: Atomic.Network.Message)
 function atomic.network.listen(name, callback)
-  listeners[name] = callback
+  listeners[md5(name)] = callback
 end
 
 ---@param name string
 function atomic.network.unlisten(name)
-  listeners[name] = nil
+  listeners[md5(name)] = nil
 end
 
 ---@return string
 local function generateMessageId()
-  return util.MD5("atomic.network:" .. os.time() .. ":" .. math.random(1, 99999))
+  return md5("atomic.network:" .. os.time() .. ":" .. math.random(1, 99999))
 end
 
 ---@param schemaName string
@@ -85,6 +87,7 @@ end
 ---@param id? string Overrides message id
 ---@return boolean
 function atomic.network.send(schemaName, data, player, sendFunction, id)
+	local schemaName = md5(schemaName)
   local schema = schemas[schemaName]
 
   if (not schema) then
@@ -92,7 +95,6 @@ function atomic.network.send(schemaName, data, player, sendFunction, id)
   end
 
   net.Start(netChannelName)
-  -- todo md5ing schemaName for get a little a few bytes
   net.WriteString(schemaName)
   net.WriteBool(id ~= nil)
 
